@@ -105,7 +105,7 @@
     box-shadow:0 0 8px var(--accent);
     flex:none;
   }
-  .spacer{ flex:1 1 auto; }
+  .spacer{ flex:1 1 auto; min-width:8px; }
 
   button.tbtn{
     display:flex; align-items:center; gap:6px;
@@ -129,19 +129,15 @@
   }
   button.tbtn:disabled{ opacity:.35; cursor:default; }
   button.tbtn:disabled:hover{ background:transparent; }
+  button.tbtn.iconOnly{ padding:7px; }
   button.tbtn svg{ width:16px; height:16px; flex:none; }
-  .divider{ width:1px; align-self:stretch; background:var(--panel-border); margin:4px 2px; }
 
   button.tbtn.danger{ color:var(--danger); }
   button.tbtn.danger:hover{ background:color-mix(in srgb, var(--danger) 14%, transparent); }
 
-  /* ---------- Inspector panel ---------- */
-  #inspector{
+  /* ---------- Floating panels (inspector + outliner) ---------- */
+  #inspector, #outliner{
     position:fixed;
-    top: calc(64px + env(safe-area-inset-top, 0px));
-    right:14px;
-    width:270px;
-    max-width:calc(100vw - 28px);
     background:var(--panel);
     border:1px solid var(--panel-border);
     border-radius:14px;
@@ -151,10 +147,34 @@
     display:flex;
     flex-direction:column;
     gap:14px;
-    transform:translateX(calc(100% + 28px));
     transition:transform .18s ease;
   }
+  #inspector{
+    top: calc(64px + env(safe-area-inset-top, 0px));
+    right:14px;
+    width:270px;
+    max-width:calc(100vw - 28px);
+    transform:translateX(calc(100% + 28px));
+  }
   #inspector.open{ transform:translateX(0); }
+
+  #outliner{
+    top: calc(64px + env(safe-area-inset-top, 0px));
+    left:14px;
+    width:210px;
+    max-width:calc(100vw - 28px);
+    max-height:min(46vh, 380px);
+    padding:12px;
+    gap:8px;
+    transform:translateX(calc(-100% - 28px));
+  }
+  #outliner.open{ transform:translateX(0); }
+  #outlinerList{ overflow-y:auto; display:flex; flex-direction:column; gap:2px; margin:-2px; padding:2px; }
+
+  .panel-kind{
+    font-size:11px; text-transform:uppercase; letter-spacing:.08em;
+    color:var(--text-dim); font-weight:600;
+  }
 
   .insp-head{
     display:flex; align-items:center; justify-content:space-between;
@@ -162,16 +182,12 @@
   .insp-title{
     display:flex; flex-direction:column; gap:2px;
   }
-  .insp-kind{
-    font-size:11px; text-transform:uppercase; letter-spacing:.08em;
-    color:var(--text-dim); font-weight:600;
-  }
   .insp-name{ font-size:16px; font-weight:700; }
   .iconbtn{
     background:transparent; border:1px solid var(--panel-border);
     border-radius:8px; width:30px; height:30px;
     display:flex; align-items:center; justify-content:center;
-    color:var(--text-dim); cursor:pointer;
+    color:var(--text-dim); cursor:pointer; flex:none;
   }
   .iconbtn:hover{ color:var(--danger); border-color:var(--danger); }
   .iconbtn svg{ width:15px; height:15px; }
@@ -210,7 +226,7 @@
   input[type="color"]{
     -webkit-appearance:none; appearance:none;
     width:34px; height:28px; border:1px solid var(--panel-border);
-    border-radius:7px; padding:0; background:none; cursor:pointer;
+    border-radius:7px; padding:0; background:none; cursor:pointer; flex:none;
   }
   input[type="color"]::-webkit-color-swatch-wrapper{ padding:2px; }
   input[type="color"]::-webkit-color-swatch{ border-radius:5px; border:none; }
@@ -237,6 +253,46 @@
   .slider-row .val{ color:var(--text-dim); }
 
   hr.sep{ border:none; border-top:1px solid var(--panel-border); margin:2px 0; }
+
+  .toggle-btn{
+    display:flex; align-items:center; justify-content:space-between;
+    width:100%;
+    padding:8px 10px;
+    border-radius:9px;
+    border:1px solid var(--panel-border);
+    background:var(--bg);
+    color:var(--text);
+    font:inherit; font-size:12.5px; font-weight:600;
+    cursor:pointer;
+  }
+  .toggle-btn .pip{
+    width:32px; height:18px; border-radius:999px;
+    background:var(--panel-border); position:relative; flex:none;
+    transition:background .12s ease;
+  }
+  .toggle-btn .pip::after{
+    content:''; position:absolute; top:2px; left:2px; width:14px; height:14px;
+    border-radius:50%; background:var(--panel); transition:left .12s ease;
+  }
+  .toggle-btn.on .pip{ background:var(--accent); }
+  .toggle-btn.on .pip::after{ left:16px; }
+
+  .outliner-row{
+    display:flex; align-items:center; gap:8px; padding:7px 8px; border-radius:8px;
+    cursor:pointer; font-size:13px; font-weight:600;
+  }
+  .outliner-row:hover{ background:var(--bg); }
+  .outliner-row.selected{ background:color-mix(in srgb, var(--accent) 16%, var(--bg)); }
+  .outliner-row .dot2{ width:9px; height:9px; border-radius:50%; flex:none; border:1px solid rgba(0,0,0,.15); }
+  .outliner-row .name{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+  .outliner-row .rm{
+    opacity:0; background:none; border:none; color:var(--text-dim); cursor:pointer;
+    padding:2px; display:flex; flex:none;
+  }
+  .outliner-row:hover .rm{ opacity:1; }
+  .outliner-row .rm:hover{ color:var(--danger); }
+  .outliner-row .rm svg{ width:13px; height:13px; }
+  .outliner-empty{ font-size:12px; color:var(--text-dim); padding:6px 2px; }
 
   /* ---------- Bottom HUD ---------- */
   #hud{
@@ -290,6 +346,9 @@
       transform:translateY(calc(100% + 28px));
     }
     #inspector.open{ transform:translateY(0); }
+    #outliner{
+      left:14px; right:14px; width:auto; max-width:none;
+    }
     #hud{ bottom: auto; top: calc(64px + env(safe-area-inset-top, 0px)); }
   }
 </style>
@@ -334,7 +393,46 @@
     </button>
   </div>
 
+  <div class="toolgroup">
+    <button class="tbtn iconOnly" id="undoBtn" title="Undo (Ctrl+Z)" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 7 4 12l5 5"/><path d="M4 12h11a5 5 0 0 1 0 10h-1"/></svg>
+    </button>
+    <button class="tbtn iconOnly" id="redoBtn" title="Redo (Ctrl+Shift+Z)" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 7l5 5-5 5"/><path d="M20 12H9a5 5 0 0 0 0 10h1"/></svg>
+    </button>
+  </div>
+
+  <div class="toolgroup">
+    <button class="tbtn iconOnly" id="saveBtn" title="Save scene">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4h11l3 3v13H5V4Z"/><path d="M8 4v5h7V4"/><path d="M8 14h8v6H8z"/></svg>
+    </button>
+    <button class="tbtn iconOnly" id="loadBtn" title="Load saved scene">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7h6l2 2h10v10H3V7Z"/></svg>
+    </button>
+  </div>
+
+  <div class="toolgroup">
+    <button class="tbtn iconOnly" id="camFront" title="Front view">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="16" height="16" rx="2"/><circle cx="12" cy="12" r="3"/></svg>
+    </button>
+    <button class="tbtn iconOnly" id="camTop" title="Top view">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 10h16M4 15h16"/></svg>
+    </button>
+    <button class="tbtn iconOnly" id="camSide" title="Side view">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M12 4v16"/></svg>
+    </button>
+    <button class="tbtn iconOnly" id="camReset" title="Reset camera">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v5h-5"/></svg>
+    </button>
+  </div>
+
   <div class="spacer"></div>
+
+  <div class="toolgroup">
+    <button class="tbtn iconOnly active" id="toggleOutliner" title="Show/hide object list">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+    </button>
+  </div>
 
   <div class="toolgroup">
     <button class="tbtn danger" id="clearBtn" title="Remove all placed shapes">
@@ -344,13 +442,18 @@
   </div>
 </div>
 
+<div id="outliner">
+  <div class="panel-kind">Objects</div>
+  <div id="outlinerList"></div>
+</div>
+
 <div id="inspector">
   <!-- populated by JS -->
 </div>
 
 <div id="hud">
   <div class="pill"><b id="objCount">0</b>&nbsp;objects <span id="selPill" style="display:none">· <b id="selName"></b> selected</span></div>
-  <div class="pill hint">Click a shape to select · drag the gizmo to move it · <span class="mono">W</span>/<span class="mono">E</span>/<span class="mono">R</span> to switch mode · <span class="mono">Del</span> to remove</div>
+  <div class="pill hint">Click a shape to select · drag the gizmo to move it · <span class="mono">W</span>/<span class="mono">E</span>/<span class="mono">R</span> to switch mode · <span class="mono">Del</span> to remove · <span class="mono">Ctrl</span>+<span class="mono">Z</span> to undo</div>
 </div>
 
 <div id="toast"></div>
@@ -364,35 +467,20 @@
 (function(){
   "use strict";
 
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+    });
+  }
+
   // ---------------------------------------------------------------
-  // Theme-aware scene background
+  // Theme
   // ---------------------------------------------------------------
   function prefersDark(){
     var stamp = document.documentElement.getAttribute('data-theme');
     if(stamp === 'dark') return true;
     if(stamp === 'light') return false;
     return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-  }
-
-  function skyTexture(dark){
-    var c = document.createElement('canvas');
-    c.width = 8; c.height = 256;
-    var ctx = c.getContext('2d');
-    var g = ctx.createLinearGradient(0,0,0,256);
-    if(dark){
-      g.addColorStop(0, '#1b2130');
-      g.addColorStop(0.55, '#0f121a');
-      g.addColorStop(1, '#08090c');
-    } else {
-      g.addColorStop(0, '#dfe8f5');
-      g.addColorStop(0.55, '#eef1f6');
-      g.addColorStop(1, '#f4f0e8');
-    }
-    ctx.fillStyle = g;
-    ctx.fillRect(0,0,8,256);
-    var tex = new THREE.CanvasTexture(c);
-    tex.encoding = THREE.sRGBEncoding;
-    return tex;
   }
 
   // ---------------------------------------------------------------
@@ -407,10 +495,10 @@
 
   var scene = new THREE.Scene();
   var dark = prefersDark();
-  scene.background = skyTexture(dark);
 
+  var DEFAULT_CAM = { pos:[7, 5.5, 8], target:[0, 0.8, 0] };
   var camera = new THREE.PerspectiveCamera(45, 1, 0.1, 200);
-  camera.position.set(7, 5.5, 8);
+  camera.position.set(DEFAULT_CAM.pos[0], DEFAULT_CAM.pos[1], DEFAULT_CAM.pos[2]);
 
   function resize(){
     var w = window.innerWidth, h = window.innerHeight;
@@ -444,8 +532,11 @@
   var hemi = new THREE.HemisphereLight(dark ? 0x2b3550 : 0xdfe8f5, dark ? 0x15130f : 0xcbbfa8, 0.55);
   scene.add(hemi);
 
-  var bulbColor = 0xffb454;
-  var pointLight = new THREE.PointLight(0xfff1d8, 2.4, 0, 2);
+  var DEFAULT_LIGHT_POS = [3.5, 4.5, 2.5];
+  var DEFAULT_LIGHT_COLOR = 0xfff1d8;
+  var DEFAULT_LIGHT_INTENSITY = 2.4;
+
+  var pointLight = new THREE.PointLight(DEFAULT_LIGHT_COLOR, DEFAULT_LIGHT_INTENSITY, 0, 2);
   pointLight.castShadow = true;
   pointLight.shadow.mapSize.set(1024, 1024);
   pointLight.shadow.camera.near = 0.5;
@@ -453,8 +544,9 @@
   pointLight.shadow.bias = -0.002;
   scene.add(pointLight);
 
+  var bulbColor = 0xffb454;
   var lightGizmo = new THREE.Group();
-  lightGizmo.position.set(3.5, 4.5, 2.5);
+  lightGizmo.position.set(DEFAULT_LIGHT_POS[0], DEFAULT_LIGHT_POS[1], DEFAULT_LIGHT_POS[2]);
   var bulbCore = new THREE.Mesh(
     new THREE.SphereGeometry(0.16, 20, 16),
     new THREE.MeshBasicMaterial({ color: bulbColor })
@@ -468,17 +560,20 @@
   lightGizmo.userData.kind = 'light';
   scene.add(lightGizmo);
   pointLight.position.copy(lightGizmo.position);
+  pointLight.color.setHex(DEFAULT_LIGHT_COLOR);
+  bulbCore.material.color.setHex(bulbColor);
+  bulbGlow.material.color.setHex(bulbColor);
 
   // ---------------------------------------------------------------
-  // Ground
+  // Ground + background (Scene settings)
   // ---------------------------------------------------------------
-  function checkerTexture(dark){
+  function checkerTexture(isDark){
     var size = 256;
     var c = document.createElement('canvas');
     c.width = c.height = size;
     var ctx = c.getContext('2d');
-    var a = dark ? '#20242e' : '#e7eaf0';
-    var b = dark ? '#262b37' : '#dde1ea';
+    var a = isDark ? '#20242e' : '#e7eaf0';
+    var b = isDark ? '#262b37' : '#dde1ea';
     var cells = 8, cell = size / cells;
     for(var i=0;i<cells;i++){
       for(var j=0;j<cells;j++){
@@ -493,14 +588,155 @@
     return tex;
   }
 
+  // Draws an ellipse speckle plus wrapped copies near the canvas edges so
+  // the tiled ground textures below don't show a hard seam at the repeat.
+  function drawSpeckle(ctx, size, x, y, r, ry, col){
+    var xs = [x];
+    if(x < r) xs.push(x + size);
+    if(x > size - r) xs.push(x - size);
+    var ys = [y];
+    if(y < ry) ys.push(y + size);
+    if(y > size - ry) ys.push(y - size);
+    ctx.fillStyle = col;
+    xs.forEach(function(xx){
+      ys.forEach(function(yy){
+        ctx.beginPath();
+        ctx.ellipse(xx, yy, r, ry, 0, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    });
+  }
+
+  function noiseGroundTexture(colorSet, isDark, opts){
+    var size = 256;
+    var c = document.createElement('canvas');
+    c.width = c.height = size;
+    var ctx = c.getContext('2d');
+    var colors = isDark ? colorSet.dark : colorSet.light;
+    ctx.fillStyle = colors[0];
+    ctx.fillRect(0, 0, size, size);
+    ctx.globalAlpha = opts.alpha != null ? opts.alpha : 0.5;
+    for(var i=0;i<opts.speckles;i++){
+      var col = colors[1 + Math.floor(Math.random() * (colors.length - 1))];
+      var x = Math.random() * size, y = Math.random() * size;
+      var r = opts.minR + Math.random() * (opts.maxR - opts.minR);
+      var ry = r * (0.6 + Math.random() * 0.5);
+      drawSpeckle(ctx, size, x, y, r, ry, col);
+    }
+    ctx.globalAlpha = 1;
+    var tex = new THREE.CanvasTexture(c);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(opts.repeat || 9, opts.repeat || 9);
+    tex.anisotropy = 4;
+    return tex;
+  }
+
+  var GROUND_TEXTURES = {
+    plain:   { label:'Plain',   swatch:'#c7cbd2', build: function(){ return null; } },
+    checker: { label:'Checker', swatch:'#cfd6e0', build: function(isDark){ return checkerTexture(isDark); } },
+    dirt:    { label:'Dirt',    swatch:'#8a5a3c', build: function(isDark){
+      return noiseGroundTexture({
+        light: ['#93613f','#7f5334','#a4754c','#8f6541'],
+        dark:  ['#3c2818','#332012','#472f1c','#3a2716']
+      }, isDark, { speckles: 1100, minR: 2, maxR: 6.5, alpha: 0.5, repeat: 9 });
+    } },
+    grass:   { label:'Grass',   swatch:'#5f9a52', build: function(isDark){
+      return noiseGroundTexture({
+        light: ['#5f9a52','#6fae5f','#4f8a46','#7cb86a'],
+        dark:  ['#20361c','#2a4522','#193014','#33542a']
+      }, isDark, { speckles: 1500, minR: 1.5, maxR: 4, alpha: 0.55, repeat: 9 });
+    } },
+    cement:  { label:'Cement',  swatch:'#a9adb3', build: function(isDark){
+      return noiseGroundTexture({
+        light: ['#b7bac0','#aeb2b8','#c3c6cb','#a5a8ae'],
+        dark:  ['#35373b','#2e3033','#3c3e42','#292b2e']
+      }, isDark, { speckles: 1200, minR: 1, maxR: 5, alpha: 0.28, repeat: 7 });
+    } }
+  };
+  var GROUND_ORDER = ['plain','checker','dirt','grass','cement'];
+  var groundTextureCache = {};
+  function getGroundTexture(key){
+    if(!GROUND_TEXTURES[key]) key = 'checker';
+    if(key === 'plain') return null;
+    if(!groundTextureCache[key]) groundTextureCache[key] = GROUND_TEXTURES[key].build(dark);
+    return groundTextureCache[key];
+  }
+
+  var BG_PRESETS = {
+    studio:   { label:'Studio',    swatch:'#dfe8f5', top:'#dfe8f5', mid:'#eef1f6', bottom:'#f4f0e8', dtop:'#1b2130', dmid:'#0f121a', dbottom:'#08090c' },
+    clearsky: { label:'Clear Sky', swatch:'#4fa3dd', top:'#2f8ddb', mid:'#7ec3ef', bottom:'#e3f3fb', dtop:'#0c2338', dmid:'#123a5c', dbottom:'#1e527c' },
+    cloudy:   { label:'Cloudy',    swatch:'#b9c7d2', top:'#8fa9bd', mid:'#c7d3dc', bottom:'#e7ebee', dtop:'#232c36', dmid:'#333d47', dbottom:'#4a535c', clouds:true },
+    overcast: { label:'Overcast',  swatch:'#d2d7de', top:'#c7cdd6', mid:'#d7dbe2', bottom:'#e4e6ea', dtop:'#22242a', dmid:'#2a2d33', dbottom:'#33363d' },
+    sunset:   { label:'Sunset',    swatch:'#f4667a', top:'#ffb27a', mid:'#f4667a', bottom:'#3d2a52', dtop:'#3a2440', dmid:'#26173a', dbottom:'#120c22' },
+    night:    { label:'Night',     swatch:'#0b0f1c', top:'#131a2b', mid:'#0b0f1c', bottom:'#05070f', dtop:'#10141f', dmid:'#0a0d16', dbottom:'#04050a' }
+  };
+  var BG_ORDER = ['studio','clearsky','cloudy','overcast','sunset','night'];
+
+  function buildSkyTexture(presetKey, isDark){
+    var preset = BG_PRESETS[presetKey] || BG_PRESETS.studio;
+    var w = preset.clouds ? 128 : 8;
+    var h = 256;
+    var c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    var ctx = c.getContext('2d');
+    var g = ctx.createLinearGradient(0,0,0,h);
+    g.addColorStop(0, isDark ? preset.dtop : preset.top);
+    g.addColorStop(0.55, isDark ? preset.dmid : preset.mid);
+    g.addColorStop(1, isDark ? preset.dbottom : preset.bottom);
+    ctx.fillStyle = g;
+    ctx.fillRect(0,0,w,h);
+
+    if(preset.clouds){
+      var cloudColor = isDark ? 'rgba(214,219,226,0.45)' : 'rgba(255,255,255,0.85)';
+      try{ ctx.filter = 'blur(4px)'; }catch(err){}
+      for(var i=0;i<9;i++){
+        var cx = Math.random()*w;
+        var cy = h*0.12 + Math.random()*h*0.35;
+        var rx = w*(0.14+Math.random()*0.18);
+        var ry = rx*(0.35+Math.random()*0.25);
+        ctx.fillStyle = cloudColor;
+        ctx.beginPath();
+        ctx.ellipse(cx,cy,rx,ry,0,0,Math.PI*2);
+        ctx.fill();
+      }
+      ctx.filter = 'none';
+    }
+
+    var tex = new THREE.CanvasTexture(c);
+    tex.encoding = THREE.sRGBEncoding;
+    return tex;
+  }
+
+  var sceneState = { groundColor: '#ffffff', groundTexture: 'checker', bgPreset: 'studio' };
+
+  function setBackgroundPreset(key){
+    if(!BG_PRESETS[key]) key = 'studio';
+    if(scene.background && scene.background.dispose) scene.background.dispose();
+    scene.background = buildSkyTexture(key, dark);
+    sceneState.bgPreset = key;
+  }
+  function setGroundColor(hex){
+    if(!hex) hex = '#ffffff';
+    ground.material.color.set(hex);
+    sceneState.groundColor = hex;
+  }
+  function setGroundTexture(key){
+    if(!GROUND_TEXTURES[key]) key = 'checker';
+    ground.material.map = getGroundTexture(key);
+    ground.material.needsUpdate = true;
+    sceneState.groundTexture = key;
+  }
+
   var ground = new THREE.Mesh(
     new THREE.PlaneGeometry(60, 60),
-    new THREE.MeshStandardMaterial({ map: checkerTexture(dark), roughness: 0.95, metalness: 0, envMap: envMap })
+    new THREE.MeshStandardMaterial({ map: getGroundTexture('checker'), roughness: 0.95, metalness: 0, envMap: envMap })
   );
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
   ground.userData.isGround = true;
   scene.add(ground);
+
+  setBackgroundPreset('studio');
 
   // ---------------------------------------------------------------
   // Controls
@@ -511,15 +747,39 @@
   orbit.maxPolarAngle = Math.PI * 0.495;
   orbit.minDistance = 2;
   orbit.maxDistance = 40;
-  orbit.target.set(0, 0.8, 0);
+  orbit.target.set(DEFAULT_CAM.target[0], DEFAULT_CAM.target[1], DEFAULT_CAM.target[2]);
 
   var xform = new THREE.TransformControls(camera, renderer.domElement);
   xform.setSize(0.85);
   scene.add(xform);
-  xform.addEventListener('dragging-changed', function(e){ orbit.enabled = !e.value; });
+  xform.addEventListener('dragging-changed', function(e){
+    orbit.enabled = !e.value;
+    if(e.value) beginChange(); else commitChange();
+  });
   xform.addEventListener('objectChange', function(){
     if(selected === lightGizmo){ pointLight.position.copy(lightGizmo.position); }
   });
+
+  // ---------------------------------------------------------------
+  // Camera presets
+  // ---------------------------------------------------------------
+  var CAMERA_PRESETS = {
+    front: { pos:[0, 3, 11],   target:[0, 1, 0] },
+    top:   { pos:[0.01, 14, 0.01], target:[0, 0, 0] },
+    side:  { pos:[11, 3, 0],   target:[0, 1, 0] },
+    reset: { pos: DEFAULT_CAM.pos, target: DEFAULT_CAM.target }
+  };
+  function goToCamera(key){
+    var p = CAMERA_PRESETS[key];
+    if(!p) return;
+    camera.position.set(p.pos[0], p.pos[1], p.pos[2]);
+    orbit.target.set(p.target[0], p.target[1], p.target[2]);
+    orbit.update();
+  }
+  document.getElementById('camFront').addEventListener('click', function(){ goToCamera('front'); });
+  document.getElementById('camTop').addEventListener('click', function(){ goToCamera('top'); });
+  document.getElementById('camSide').addEventListener('click', function(){ goToCamera('side'); });
+  document.getElementById('camReset').addEventListener('click', function(){ goToCamera('reset'); });
 
   // ---------------------------------------------------------------
   // Materials / presets
@@ -545,6 +805,7 @@
 
   function applyPreset(root, key){
     var p = PRESETS[key];
+    if(!p) return;
     eachMaterial(root, function(m){
       m.metalness = p.metalness;
       m.roughness = p.roughness;
@@ -554,6 +815,15 @@
       m.needsUpdate = true;
     });
     root.userData.preset = key;
+    // Three.js shadow maps render every caster as a solid silhouette —
+    // they don't look at opacity/transparency at all — so a see-through
+    // "Clear" object was casting the same heavy dark shadow as a solid
+    // matte one. There's no cheap way to make that shadow proportionally
+    // lighter, so transparent presets simply stop casting a shadow.
+    root.traverse(function(o){
+      if(o.isMesh) o.castShadow = !p.transparent;
+    });
+    updateReflectionProbe(root);
   }
 
   function applyColor(root, hex){
@@ -574,12 +844,59 @@
   }
 
   // ---------------------------------------------------------------
+  // Per-object reflection probes: a metal/mirror object needs to see
+  // everything around it EXCEPT itself, and should still show up in a
+  // neighboring mirror's reflection. The single shared cubemap above
+  // can't do that (it's one texture used by every material), so any
+  // object reflective enough to notice gets its own small cubemap,
+  // captured from its own position with only itself hidden. Non-metal
+  // materials (matte, and low-Fresnel "Clear" glass) keep using the
+  // cheap shared cubemap instead — they don't show a visible
+  // self-reflection artifact, so a dedicated probe would be wasted cost.
+  // ---------------------------------------------------------------
+  var OWN_PROBE_SIZE = 128;
+  function createOwnProbe(){
+    var target = new THREE.WebGLCubeRenderTarget(OWN_PROBE_SIZE, {
+      format: THREE.RGBAFormat,
+      generateMipmaps: true,
+      minFilter: THREE.LinearMipmapLinearFilter
+    });
+    var probeCam = new THREE.CubeCamera(0.05, 60, target);
+    scene.add(probeCam);
+    return { cubeCamera: probeCam, target: target };
+  }
+  function disposeOwnProbe(root){
+    if(root.userData.ownProbe){
+      scene.remove(root.userData.ownProbe.cubeCamera);
+      root.userData.ownProbe.target.dispose();
+      delete root.userData.ownProbe;
+    }
+  }
+  function updateReflectionProbe(root){
+    var m = firstMaterial(root);
+    var reflective = !!m && m.metalness >= 0.4;
+    if(reflective){
+      if(!root.userData.ownProbe) root.userData.ownProbe = createOwnProbe();
+      eachMaterial(root, function(mat){ mat.envMap = root.userData.ownProbe.target.texture; mat.needsUpdate = true; });
+    } else if(root.userData.ownProbe){
+      disposeOwnProbe(root);
+      eachMaterial(root, function(mat){ mat.envMap = envMap; mat.needsUpdate = true; });
+    }
+  }
+
+  // ---------------------------------------------------------------
   // Object spawning
   // ---------------------------------------------------------------
   var objects = [];
   var spawnColors = ['#8fa3c7','#d99a5b','#7fb89a','#c07f9e','#9c8fd9','#c9b25b'];
   var spawnIndex = 0;
   var placedCount = 0;
+
+  var SHAPE_DEFS = {
+    box:      { make: function(){ return new THREE.BoxGeometry(1,1,1); },              halfHeight: 0.5,  label: 'Box' },
+    sphere:   { make: function(){ return new THREE.SphereGeometry(0.6, 32, 24); },      halfHeight: 0.6,  label: 'Sphere' },
+    cylinder: { make: function(){ return new THREE.CylinderGeometry(0.5, 0.5, 1.1, 28); }, halfHeight: 0.55, label: 'Cylinder' }
+  };
 
   function nextSpawnColor(){
     var c = spawnColors[spawnIndex % spawnColors.length];
@@ -593,7 +910,17 @@
     return new THREE.Vector3(Math.cos(angle) * radius, 0, Math.sin(angle) * radius);
   }
 
-  function finalizeShape(mesh, halfHeight, label){
+  function createPrimitive(type){
+    var def = SHAPE_DEFS[type];
+    if(!def) return null;
+    var mat = new THREE.MeshStandardMaterial({ envMap: envMap });
+    var mesh = new THREE.Mesh(def.make(), mat);
+    mesh.userData.shapeType = type;
+    return { mesh: mesh, halfHeight: def.halfHeight, label: def.label };
+  }
+
+  function finalizeShape(mesh, halfHeight, label, presetKey, colorHex){
+    pushHistory();
     var pos = spawnPosition();
     mesh.position.set(pos.x, halfHeight, pos.z);
     mesh.castShadow = true;
@@ -601,8 +928,8 @@
     mesh.userData.selectable = true;
     mesh.userData.kind = 'shape';
     mesh.userData.label = label;
-    applyPreset(mesh, 'matte');
-    applyColor(mesh, nextSpawnColor());
+    applyPreset(mesh, presetKey || 'matte');
+    applyColor(mesh, colorHex || nextSpawnColor());
     scene.add(mesh);
     objects.push(mesh);
     placedCount++;
@@ -610,25 +937,15 @@
     updateHud();
   }
 
-  function addBox(){
-    var mat = new THREE.MeshStandardMaterial({ envMap: envMap });
-    var mesh = new THREE.Mesh(new THREE.BoxGeometry(1,1,1), mat);
-    finalizeShape(mesh, 0.5, 'Box');
-  }
-  function addSphere(){
-    var mat = new THREE.MeshStandardMaterial({ envMap: envMap });
-    var mesh = new THREE.Mesh(new THREE.SphereGeometry(0.6, 32, 24), mat);
-    finalizeShape(mesh, 0.6, 'Sphere');
-  }
-  function addCylinder(){
-    var mat = new THREE.MeshStandardMaterial({ envMap: envMap });
-    var mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 1.1, 28), mat);
-    finalizeShape(mesh, 0.55, 'Cylinder');
+  function addShape(type){
+    var built = createPrimitive(type);
+    if(!built) return;
+    finalizeShape(built.mesh, built.halfHeight, built.label);
   }
 
-  document.getElementById('addBox').addEventListener('click', addBox);
-  document.getElementById('addSphere').addEventListener('click', addSphere);
-  document.getElementById('addCylinder').addEventListener('click', addCylinder);
+  document.getElementById('addBox').addEventListener('click', function(){ addShape('box'); });
+  document.getElementById('addSphere').addEventListener('click', function(){ addShape('sphere'); });
+  document.getElementById('addCylinder').addEventListener('click', function(){ addShape('cylinder'); });
 
   // ---------------------------------------------------------------
   // Import (.glb / .gltf)
@@ -666,15 +983,15 @@
         if(o.isMesh){
           o.castShadow = true;
           o.receiveShadow = true;
-          var mats = Array.isArray(o.material) ? o.material : [o.material];
-          mats.forEach(function(m){ if(m && 'envMap' in m){ m.envMap = envMap; m.needsUpdate = true; } });
         }
       });
       root.userData.selectable = true;
       root.userData.kind = 'shape';
       root.userData.label = file.name.replace(/\.(glb|gltf)$/i,'');
       root.userData.imported = true;
+      updateReflectionProbe(root);
 
+      pushHistory();
       scene.add(root);
       objects.push(root);
       placedCount++;
@@ -741,11 +1058,13 @@
     selected = obj;
     xform.attach(obj);
     renderInspector();
+    renderOutliner();
   }
   function deselect(){
     selected = null;
     xform.detach();
     renderInspector();
+    renderOutliner();
   }
 
   // ---------------------------------------------------------------
@@ -768,11 +1087,15 @@
   setMode('translate');
 
   document.getElementById('clearBtn').addEventListener('click', function(){
-    objects.slice().forEach(removeObject);
+    if(!objects.length) return;
+    pushHistory();
+    objects.slice().forEach(function(o){ removeObject(o, true); });
   });
 
-  function removeObject(obj){
+  function removeObject(obj, skipHistory){
+    if(!skipHistory) pushHistory();
     if(selected === obj) deselect();
+    disposeOwnProbe(obj);
     scene.remove(obj);
     eachMaterial(obj, function(m){ m.dispose(); });
     obj.traverse(function(o){ if(o.isMesh && o.geometry) o.geometry.dispose(); });
@@ -782,11 +1105,260 @@
   }
 
   // ---------------------------------------------------------------
+  // Undo / redo history
+  // ---------------------------------------------------------------
+  var undoStack = [];
+  var redoStack = [];
+  var HISTORY_LIMIT = 60;
+  var historyChanging = false;
+  var historyPending = null;
+
+  function captureSnapshot(){
+    return {
+      objects: objects.map(function(o){
+        var m = firstMaterial(o);
+        return {
+          ref: o,
+          pos: o.position.clone(),
+          quat: o.quaternion.clone(),
+          scale: o.scale.clone(),
+          preset: o.userData.preset,
+          color: o.userData.color,
+          roughness: m ? m.roughness : undefined,
+          metalness: m ? m.metalness : undefined
+        };
+      }),
+      light: {
+        pos: lightGizmo.position.clone(),
+        color: pointLight.color.getHex(),
+        intensity: pointLight.intensity
+      },
+      groundColor: sceneState.groundColor,
+      groundTexture: sceneState.groundTexture,
+      bgPreset: sceneState.bgPreset
+    };
+  }
+
+  function restoreSnapshot(snap){
+    objects.slice().forEach(function(o){
+      var stillThere = snap.objects.some(function(s){ return s.ref === o; });
+      if(!stillThere){
+        if(selected === o) selected = null;
+        scene.remove(o);
+      }
+    });
+    objects.length = 0;
+    snap.objects.forEach(function(s){
+      if(s.ref.parent !== scene) scene.add(s.ref);
+      s.ref.position.copy(s.pos);
+      s.ref.quaternion.copy(s.quat);
+      s.ref.scale.copy(s.scale);
+      if(s.preset) applyPreset(s.ref, s.preset);
+      if(s.color) applyColor(s.ref, s.color);
+      if(typeof s.roughness === 'number') applyRoughness(s.ref, s.roughness);
+      if(typeof s.metalness === 'number') applyMetalness(s.ref, s.metalness);
+      updateReflectionProbe(s.ref);
+      objects.push(s.ref);
+    });
+
+    lightGizmo.position.copy(snap.light.pos);
+    pointLight.color.setHex(snap.light.color);
+    pointLight.intensity = snap.light.intensity;
+    bulbCore.material.color.setHex(snap.light.color);
+    bulbGlow.material.color.setHex(snap.light.color);
+
+    setGroundColor(snap.groundColor);
+    setGroundTexture(snap.groundTexture);
+    setBackgroundPreset(snap.bgPreset);
+
+    if(selected && objects.indexOf(selected) === -1 && selected !== lightGizmo) selected = null;
+    if(selected) xform.attach(selected); else xform.detach();
+    renderInspector();
+    renderOutliner();
+    updateHud();
+  }
+
+  function pushHistory(){
+    undoStack.push(captureSnapshot());
+    if(undoStack.length > HISTORY_LIMIT) undoStack.shift();
+    redoStack.length = 0;
+    updateHistoryButtons();
+  }
+
+  function beginChange(){
+    if(historyChanging) return;
+    historyChanging = true;
+    historyPending = captureSnapshot();
+  }
+  function commitChange(){
+    if(!historyChanging) return;
+    historyChanging = false;
+    undoStack.push(historyPending);
+    if(undoStack.length > HISTORY_LIMIT) undoStack.shift();
+    redoStack.length = 0;
+    historyPending = null;
+    updateHistoryButtons();
+  }
+
+  function undo(){
+    if(!undoStack.length) return;
+    var snap = undoStack.pop();
+    redoStack.push(captureSnapshot());
+    restoreSnapshot(snap);
+    updateHistoryButtons();
+  }
+  function redo(){
+    if(!redoStack.length) return;
+    var snap = redoStack.pop();
+    undoStack.push(captureSnapshot());
+    restoreSnapshot(snap);
+    updateHistoryButtons();
+  }
+
+  var undoBtn = document.getElementById('undoBtn');
+  var redoBtn = document.getElementById('redoBtn');
+  function updateHistoryButtons(){
+    undoBtn.disabled = undoStack.length === 0;
+    redoBtn.disabled = redoStack.length === 0;
+  }
+  undoBtn.addEventListener('click', undo);
+  redoBtn.addEventListener('click', redo);
+
+  function wireContinuous(el, onChange){
+    el.addEventListener('input', function(e){
+      beginChange();
+      onChange(e);
+    });
+    el.addEventListener('change', function(e){
+      onChange(e);
+      commitChange();
+    });
+  }
+
+  // ---------------------------------------------------------------
+  // Save / Load (manual, browser local storage)
+  // ---------------------------------------------------------------
+  var STORAGE_KEY = 'lightbox-studio-scene-v1';
+
+  function serializeScene(){
+    var prims = [];
+    var skipped = 0;
+    objects.forEach(function(o){
+      if(o.userData.imported){ skipped++; return; }
+      var m = firstMaterial(o);
+      prims.push({
+        shapeType: o.userData.shapeType,
+        label: o.userData.label,
+        position: o.position.toArray(),
+        quaternion: o.quaternion.toArray(),
+        scale: o.scale.toArray(),
+        preset: o.userData.preset,
+        color: o.userData.color,
+        roughness: m ? m.roughness : undefined,
+        metalness: m ? m.metalness : undefined
+      });
+    });
+    return {
+      version: 1,
+      objects: prims,
+      skippedImports: skipped,
+      placedCount: placedCount,
+      light: {
+        position: lightGizmo.position.toArray(),
+        color: pointLight.color.getHex(),
+        intensity: pointLight.intensity
+      },
+      ground: { color: sceneState.groundColor, texture: sceneState.groundTexture },
+      background: sceneState.bgPreset
+    };
+  }
+
+  function saveScene(){
+    var data = serializeScene();
+    try{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      var note = data.skippedImports ? (' (' + data.skippedImports + ' imported model' + (data.skippedImports > 1 ? 's' : '') + ' not included — only basic shapes are saved for now)') : '';
+      showToast('Scene saved' + note + '.');
+    } catch(err){
+      console.error(err);
+      showToast('Could not save — your browser blocked local storage.');
+    }
+  }
+
+  function loadScene(){
+    var raw;
+    try{ raw = localStorage.getItem(STORAGE_KEY); }
+    catch(err){ raw = null; }
+    if(!raw){ showToast('No saved scene found yet.'); return; }
+    var data;
+    try{ data = JSON.parse(raw); }
+    catch(err){ showToast('Saved scene data looks corrupted.'); return; }
+
+    pushHistory();
+
+    objects.slice().forEach(function(o){ removeObject(o, true); });
+
+    (data.objects || []).forEach(function(s){
+      if(!SHAPE_DEFS[s.shapeType]) return;
+      var built = createPrimitive(s.shapeType);
+      var mesh = built.mesh;
+      mesh.position.fromArray(s.position || [0, built.halfHeight, 0]);
+      mesh.quaternion.fromArray(s.quaternion || [0,0,0,1]);
+      mesh.scale.fromArray(s.scale || [1,1,1]);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      mesh.userData.selectable = true;
+      mesh.userData.kind = 'shape';
+      mesh.userData.label = s.label || built.label;
+      applyPreset(mesh, s.preset || 'matte');
+      applyColor(mesh, s.color || nextSpawnColor());
+      if(typeof s.roughness === 'number') applyRoughness(mesh, s.roughness);
+      if(typeof s.metalness === 'number') applyMetalness(mesh, s.metalness);
+      updateReflectionProbe(mesh);
+      scene.add(mesh);
+      objects.push(mesh);
+    });
+
+    if(data.light){
+      lightGizmo.position.fromArray(data.light.position || DEFAULT_LIGHT_POS);
+      pointLight.color.setHex(data.light.color != null ? data.light.color : DEFAULT_LIGHT_COLOR);
+      pointLight.intensity = typeof data.light.intensity === 'number' ? data.light.intensity : DEFAULT_LIGHT_INTENSITY;
+      bulbCore.material.color.copy(pointLight.color);
+      bulbGlow.material.color.copy(pointLight.color);
+    }
+    if(data.ground){
+      setGroundColor(data.ground.color);
+      var groundTexKey = data.ground.texture;
+      if(!groundTexKey) groundTexKey = (data.ground.checker === false) ? 'plain' : 'checker';
+      setGroundTexture(groundTexKey);
+    }
+    setBackgroundPreset(data.background);
+
+    placedCount = typeof data.placedCount === 'number' ? data.placedCount : objects.length;
+    deselect();
+    updateHud();
+
+    var note = data.skippedImports ? (' (' + data.skippedImports + ' imported model' + (data.skippedImports > 1 ? 's' : '') + ' from that save couldn’t be restored)') : '';
+    showToast('Scene loaded' + note + '.');
+  }
+
+  document.getElementById('saveBtn').addEventListener('click', saveScene);
+  document.getElementById('loadBtn').addEventListener('click', loadScene);
+
+  // ---------------------------------------------------------------
   // Keyboard shortcuts
   // ---------------------------------------------------------------
   window.addEventListener('keydown', function(e){
     var tag = (document.activeElement && document.activeElement.tagName) || '';
     if(tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+    if((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === 'z' || e.key === 'Z')){
+      e.preventDefault(); undo(); return;
+    }
+    if((e.ctrlKey || e.metaKey) && (e.key === 'y' || e.key === 'Y' || (e.shiftKey && (e.key === 'z' || e.key === 'Z')))){
+      e.preventDefault(); redo(); return;
+    }
+
     if(e.key === 'w' || e.key === 'W') setMode('translate');
     else if(e.key === 'e' || e.key === 'E') setMode('rotate');
     else if(e.key === 'r' || e.key === 'R') setMode('scale');
@@ -799,27 +1371,22 @@
   });
 
   // ---------------------------------------------------------------
-  // Inspector panel
+  // Inspector panel (shape / light / scene settings)
   // ---------------------------------------------------------------
   var inspector = document.getElementById('inspector');
+  inspector.classList.add('open');
 
   function svgTrash(){
     return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/></svg>';
   }
 
   function renderInspector(){
-    if(!selected){
-      inspector.classList.remove('open');
-      inspector.innerHTML = '';
-      updateHud();
-      return;
-    }
-    inspector.classList.add('open');
+    if(!selected){ renderScenePanel(); return; }
 
     if(selected.userData.kind === 'light'){
       inspector.innerHTML =
         '<div class="insp-head">' +
-          '<div class="insp-title"><span class="insp-kind">Light source</span><span class="insp-name">Point light</span></div>' +
+          '<div class="insp-title"><span class="panel-kind">Light source</span><span class="insp-name">Point light</span></div>' +
         '</div>' +
         '<hr class="sep">' +
         '<div>' +
@@ -832,7 +1399,7 @@
         '</div>' +
         '<div style="font-size:12px;color:var(--text-dim);line-height:1.5">Drag the glowing sphere in the scene to move the light around.</div>';
 
-      document.getElementById('lightColor').addEventListener('input', function(e){
+      wireContinuous(document.getElementById('lightColor'), function(e){
         pointLight.color.set(e.target.value);
         bulbCore.material.color.set(e.target.value);
         bulbGlow.material.color.set(e.target.value);
@@ -841,7 +1408,7 @@
       var intVal = document.getElementById('lightIntVal');
       intInput.value = pointLight.intensity;
       intVal.textContent = pointLight.intensity.toFixed(1);
-      intInput.addEventListener('input', function(e){
+      wireContinuous(intInput, function(e){
         pointLight.intensity = parseFloat(e.target.value);
         intVal.textContent = pointLight.intensity.toFixed(1);
       });
@@ -863,7 +1430,7 @@
 
     inspector.innerHTML =
       '<div class="insp-head">' +
-        '<div class="insp-title"><span class="insp-kind">Selected shape</span><span class="insp-name">' + label + '</span></div>' +
+        '<div class="insp-title"><span class="panel-kind">Selected shape</span><span class="insp-name">' + escapeHtml(label) + '</span></div>' +
         '<button class="iconbtn" id="deleteBtn" title="Delete">' + svgTrash() + '</button>' +
       '</div>' +
       '<hr class="sep">' +
@@ -888,12 +1455,13 @@
 
     Array.prototype.forEach.call(inspector.querySelectorAll('.preset-btn'), function(btn){
       btn.addEventListener('click', function(){
+        pushHistory();
         applyPreset(selected, btn.getAttribute('data-preset'));
         renderInspector();
       });
     });
 
-    document.getElementById('shapeColor').addEventListener('input', function(e){
+    wireContinuous(document.getElementById('shapeColor'), function(e){
       applyColor(selected, e.target.value);
     });
 
@@ -906,16 +1474,125 @@
     metalInput.value = m0 ? m0.metalness : 0;
     roughVal.textContent = parseFloat(roughInput.value).toFixed(2);
     metalVal.textContent = parseFloat(metalInput.value).toFixed(2);
-    roughInput.addEventListener('input', function(e){
+    wireContinuous(roughInput, function(e){
       applyRoughness(selected, parseFloat(e.target.value));
       roughVal.textContent = parseFloat(e.target.value).toFixed(2);
+      updateReflectionProbe(selected);
     });
-    metalInput.addEventListener('input', function(e){
+    wireContinuous(metalInput, function(e){
       applyMetalness(selected, parseFloat(e.target.value));
       metalVal.textContent = parseFloat(e.target.value).toFixed(2);
+      updateReflectionProbe(selected);
     });
 
     updateHud();
+  }
+
+  function renderScenePanel(){
+    var groundHtml = GROUND_ORDER.map(function(key){
+      var g = GROUND_TEXTURES[key];
+      var sel = key === sceneState.groundTexture ? ' selected' : '';
+      return '<button class="preset-btn' + sel + '" data-ground="' + key + '">' +
+        '<span class="swatch" style="background:' + g.swatch + '"></span>' + g.label +
+        '</button>';
+    }).join('');
+
+    var bgHtml = BG_ORDER.map(function(key){
+      var p = BG_PRESETS[key];
+      var sel = key === sceneState.bgPreset ? ' selected' : '';
+      return '<button class="preset-btn' + sel + '" data-bg="' + key + '">' +
+        '<span class="swatch" style="background:' + p.swatch + '"></span>' + p.label +
+        '</button>';
+    }).join('');
+
+    inspector.innerHTML =
+      '<div class="insp-head">' +
+        '<div class="insp-title"><span class="panel-kind">Nothing selected</span><span class="insp-name">Scene</span></div>' +
+      '</div>' +
+      '<hr class="sep">' +
+      '<div>' +
+        '<span class="field-label">Ground</span>' +
+        '<div class="presets">' + groundHtml + '</div>' +
+      '</div>' +
+      '<div class="row between">' +
+        '<span class="field-label" style="margin:0">Ground tint</span>' +
+        '<input type="color" id="groundColor" value="' + sceneState.groundColor + '">' +
+      '</div>' +
+      '<div>' +
+        '<span class="field-label">Backdrop</span>' +
+        '<div class="presets">' + bgHtml + '</div>' +
+      '</div>' +
+      '<div style="font-size:12px;color:var(--text-dim);line-height:1.5">Click any shape or the light to edit it here.</div>';
+
+    wireContinuous(document.getElementById('groundColor'), function(e){
+      setGroundColor(e.target.value);
+    });
+
+    Array.prototype.forEach.call(inspector.querySelectorAll('[data-ground]'), function(btn){
+      btn.addEventListener('click', function(){
+        pushHistory();
+        setGroundTexture(btn.getAttribute('data-ground'));
+        renderScenePanel();
+      });
+    });
+
+    Array.prototype.forEach.call(inspector.querySelectorAll('[data-bg]'), function(btn){
+      btn.addEventListener('click', function(){
+        pushHistory();
+        setBackgroundPreset(btn.getAttribute('data-bg'));
+        renderScenePanel();
+      });
+    });
+
+    updateHud();
+  }
+
+  // ---------------------------------------------------------------
+  // Object list (outliner)
+  // ---------------------------------------------------------------
+  var outlinerEl = document.getElementById('outliner');
+  var outlinerListEl = document.getElementById('outlinerList');
+  var toggleOutlinerBtn = document.getElementById('toggleOutliner');
+
+  function setOutlinerOpen(open){
+    outlinerEl.classList.toggle('open', open);
+    toggleOutlinerBtn.classList.toggle('active', open);
+  }
+  setOutlinerOpen(window.innerWidth > 680);
+  toggleOutlinerBtn.addEventListener('click', function(){
+    setOutlinerOpen(!outlinerEl.classList.contains('open'));
+  });
+
+  function outlinerRowHtml(idx, name, color, removable, isSelected){
+    return '<div class="outliner-row' + (isSelected ? ' selected' : '') + '" data-idx="' + idx + '">' +
+      '<span class="dot2" style="background:' + color + '"></span>' +
+      '<span class="name">' + escapeHtml(name) + '</span>' +
+      (removable ? '<button class="rm" data-idx="' + idx + '" title="Delete">' + svgTrash() + '</button>' : '') +
+      '</div>';
+  }
+
+  function renderOutliner(){
+    var rows = [];
+    rows.push(outlinerRowHtml(-1, 'Light', '#' + pointLight.color.getHexString(), false, selected === lightGizmo));
+    objects.forEach(function(o, i){
+      rows.push(outlinerRowHtml(i, o.userData.label || 'Shape', o.userData.color || '#8fa3c7', true, selected === o));
+    });
+    outlinerListEl.innerHTML = rows.join('');
+
+    Array.prototype.forEach.call(outlinerListEl.querySelectorAll('.outliner-row'), function(row){
+      row.addEventListener('click', function(e){
+        if(e.target.closest('.rm')) return;
+        var idx = parseInt(row.getAttribute('data-idx'), 10);
+        select(idx === -1 ? lightGizmo : objects[idx]);
+      });
+    });
+    Array.prototype.forEach.call(outlinerListEl.querySelectorAll('.rm'), function(btn){
+      btn.addEventListener('click', function(e){
+        e.stopPropagation();
+        var idx = parseInt(btn.getAttribute('data-idx'), 10);
+        if(idx >= 0 && objects[idx]) removeObject(objects[idx]);
+      });
+    });
   }
 
   // ---------------------------------------------------------------
@@ -933,6 +1610,7 @@
     } else {
       selPillEl.style.display = 'none';
     }
+    renderOutliner();
   }
 
   var toastEl = document.getElementById('toast');
@@ -948,23 +1626,54 @@
   // Render loop
   // ---------------------------------------------------------------
   var envFrame = 0;
+  var probeCursor = 0;
+  var probeWorldPos = new THREE.Vector3();
   function tick(){
     orbit.update();
     pointLight.position.copy(lightGizmo.position);
+    scene.updateMatrixWorld();
 
+    var gizmoWasVisible = xform.visible;
+    xform.visible = false;
+
+    // Shared cubemap: used by the ground and any non-metal material
+    // (matte, and low-Fresnel "Clear" glass). Nothing that relies on it
+    // reflects itself noticeably, so it needs no per-object hiding.
     envFrame = (envFrame + 1) % 2;
     if(envFrame === 0){
-      var gizmoWasVisible = xform.visible;
-      xform.visible = false;
       cubeCamera.update(renderer, scene);
-      xform.visible = gizmoWasVisible;
     }
+
+    // Per-object probes: update a couple of them per frame, round-robin,
+    // so mirror/metal objects reflect their surroundings — including
+    // each other — live, without paying the cost of every probe every
+    // frame. Each object is hidden only for its OWN capture, so it never
+    // reflects itself but still shows up correctly in everyone else's.
+    var reflective = objects.filter(function(o){ return !!o.userData.ownProbe; });
+    if(reflective.length){
+      var perFrame = 2;
+      for(var i=0; i<perFrame && i<reflective.length; i++){
+        var obj = reflective[probeCursor % reflective.length];
+        probeCursor++;
+        var probe = obj.userData.ownProbe;
+        var wasVisible = obj.visible;
+        obj.visible = false;
+        obj.getWorldPosition(probeWorldPos);
+        probe.cubeCamera.position.copy(probeWorldPos);
+        probe.cubeCamera.update(renderer, scene);
+        obj.visible = wasVisible;
+      }
+    }
+
+    xform.visible = gizmoWasVisible;
 
     renderer.render(scene, camera);
     requestAnimationFrame(tick);
   }
   requestAnimationFrame(tick);
 
+  renderScenePanel();
+  updateHistoryButtons();
   updateHud();
 })();
 </script>
