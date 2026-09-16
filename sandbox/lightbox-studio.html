@@ -1775,6 +1775,48 @@
     return tris;
   }
 
+  // Draws a texture's image down to a small canvas and averages the
+  // pixels to get one representative color -- used as a stand-in for
+  // imported models whose real look comes from a texture map rather
+  // than a flat material color. Returns null (falls back to white)
+  // if the image can't be read for any reason (untainted-canvas edge
+  // cases, a texture with no image yet, etc.).
+  function rtSampleTextureColor(tex){
+    try{
+      var img = tex && tex.image;
+      var w = img && (img.width || img.videoWidth);
+      var h = img && (img.height || img.videoHeight);
+      if(!w || !h) return null;
+      var size = 16;
+      var c = document.createElement('canvas');
+      c.width = c.height = size;
+      var ctx = c.getContext('2d');
+      ctx.drawImage(img, 0, 0, size, size);
+      var data = ctx.getImageData(0, 0, size, size).data;
+      var r = 0, g = 0, b = 0, n = 0;
+      for(var i = 0; i < data.length; i += 4){
+        if(data[i + 3] < 8) continue; // skip transparent texels
+        r += data[i]; g += data[i + 1]; b += data[i + 2]; n++;
+      }
+      if(!n) return null;
+      return new THREE.Color(r / n / 255, g / n / 255, b / n / 255);
+    } catch(err){
+      return null; // tainted/unreadable canvas -- caller falls back
+    }
+  }
+
+  function rtAverageImportedColor(root){
+    var sum = new THREE.Color(0, 0, 0);
+    var count = 0;
+    eachMaterial(root, function(m){
+      var c = m.map ? rtSampleTextureColor(m.map) : null;
+      if(!c && m.color) c = m.color;
+      if(c){ sum.r += c.r; sum.g += c.g; sum.b += c.b; count++; }
+    });
+    if(!count) return null;
+    return new THREE.Color(sum.r / count, sum.g / count, sum.b / count);
+  }
+
   function rtMaterialForObject(o){
     var m = firstMaterial(o);
     if(!m) return { type: 'lambertian', albedo: [0.7, 0.7, 0.7] };
@@ -1788,7 +1830,19 @@
       return { type: 'diffuse_light', emit: [rtRound(e.r), rtRound(e.g), rtRound(e.b)] };
     }
 
-    var col = new THREE.Color(o.userData.color || (m.color ? '#' + m.color.getHexString() : '#ffffff'));
+    var col;
+    if(o.userData.color){
+      col = new THREE.Color(o.userData.color);
+    } else if(o.userData.imported){
+      // Imported glTF models keep their own per-mesh materials, and most
+      // of the time their "color" is white because the look actually
+      // comes from a texture map, not a flat color factor. Sample each
+      // textured material's average color instead of defaulting to
+      // white, so an imported model at least exports its rough hue.
+      col = rtAverageImportedColor(o) || new THREE.Color(m.color ? '#' + m.color.getHexString() : '#ffffff');
+    } else {
+      col = new THREE.Color(m.color ? '#' + m.color.getHexString() : '#ffffff');
+    }
 
     if(typeof m.opacity === 'number' && m.opacity < 0.999){
       return { type: 'dielectric', ior: 1.5 };
@@ -1825,10 +1879,27 @@
   }
 
   function rtExportGround(){
-    var col = new THREE.Color(sceneState.groundColor || '#ffffff');
+    var tint = new THREE.Color(sceneState.groundColor || '#ffffff');
+    var texKey = sceneState.groundTexture || 'checker';
+    var col;
+    if(texKey === 'plain'){
+      // "Plain" has no texture at all in the live scene -- the tint IS
+      // the ground color, so export it as-is.
+      col = tint;
+    } else {
+      // Every other ground preset (Checker/Dirt/Grass/Cement) is a
+      // procedural texture that isn't carried over -- solid color only.
+      // Multiply the tint by that preset's representative flat color
+      // (the same swatch shown in its picker button), the same way the
+      // tint multiplies the live texture on screen, so a preset like
+      // Grass still exports roughly the right hue instead of washing
+      // out to the tint alone (white, by default).
+      var swatchHex = (GROUND_TEXTURES[texKey] && GROUND_TEXTURES[texKey].swatch) || '#ffffff';
+      var swatch = new THREE.Color(swatchHex);
+      col = new THREE.Color(tint.r * swatch.r, tint.g * swatch.g, tint.b * swatch.b);
+    }
     // The classic Ray Tracing in One Weekend trick: a giant sphere reads
-    // as a flat ground plane near the origin. Ground texture (checker)
-    // isn't carried over -- solid color only.
+    // as a flat ground plane near the origin.
     return {
       type: 'sphere',
       center: [0, -1000, 0],

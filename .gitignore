@@ -1,2 +1,6 @@
 build/
+out/
+.vs/
 renders/*.ppm
+scene.json
+3D Models/
