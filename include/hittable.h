@@ -1,6 +1,7 @@
 #ifndef HITTABLE_H
 #define HITTABLE_H
 
+#include "aabb.h"
 #include "interval.h"
 #include "ray.h"
 
@@ -27,6 +28,10 @@ public:
     virtual ~hittable() = default;
 
     virtual bool hit(const ray& r, interval ray_t, hit_record& rec) const = 0;
+
+    // Every hittable must be able to report its own bounding box so
+    // bvh_node can organize a scene without knowing what's actually in it.
+    virtual aabb bounding_box() const = 0;
 };
 
 #endif

@@ -1,3 +1,4 @@
+#include "bvh.h"
 #include "camera.h"
 #include "color.h"
 #include "hittable_list.h"
@@ -54,6 +55,7 @@ hittable_list final_scene() {
 
 int main() {
     hittable_list world = final_scene();
+    world = hittable_list(make_shared<bvh_node>(world));
 
     camera cam;
 
