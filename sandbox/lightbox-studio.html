@@ -154,6 +154,8 @@
     right:14px;
     width:270px;
     max-width:calc(100vw - 28px);
+    max-height: calc(100vh - 92px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    overflow-y:auto;
     transform:translateX(calc(100% + 28px));
   }
   #inspector.open{ transform:translateX(0); }
@@ -343,6 +345,7 @@
       left:14px; right:14px; width:auto; max-width:none;
       top:auto;
       bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+      max-height: calc(72vh - env(safe-area-inset-bottom, 0px));
       transform:translateY(calc(100% + 28px));
     }
     #inspector.open{ transform:translateY(0); }
@@ -376,6 +379,17 @@
       Import
     </button>
     <input type="file" id="fileInput" accept=".glb,.gltf">
+  </div>
+
+  <div class="toolgroup" id="lightGroup">
+    <button class="tbtn" id="addPointLight" title="Add a point light">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 18h6"/><path d="M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.45 1 1.15 1 1.9V16h5v-.2c0-.75.4-1.45 1-1.9A6 6 0 0 0 12 3Z"/></svg>
+      Light
+    </button>
+    <button class="tbtn" id="addSunLight" title="Add a sun (directional) light">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>
+      Sun
+    </button>
   </div>
 
   <div class="toolgroup" id="modeGroup">
@@ -429,7 +443,7 @@
   <div class="spacer"></div>
 
   <div class="toolgroup">
-    <button class="tbtn iconOnly active" id="toggleOutliner" title="Show/hide object list">
+    <button class="tbtn iconOnly active" id="toggleOutliner" title="Show/hide scene list">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
     </button>
   </div>
@@ -443,7 +457,7 @@
 </div>
 
 <div id="outliner">
-  <div class="panel-kind">Objects</div>
+  <div class="panel-kind">Scene</div>
   <div id="outlinerList"></div>
 </div>
 
@@ -536,33 +550,140 @@
   var DEFAULT_LIGHT_COLOR = 0xfff1d8;
   var DEFAULT_LIGHT_INTENSITY = 2.4;
 
-  var pointLight = new THREE.PointLight(DEFAULT_LIGHT_COLOR, DEFAULT_LIGHT_INTENSITY, 0, 2);
-  pointLight.castShadow = true;
-  pointLight.shadow.mapSize.set(1024, 1024);
-  pointLight.shadow.camera.near = 0.5;
-  pointLight.shadow.camera.far = 30;
-  pointLight.shadow.bias = -0.002;
-  scene.add(pointLight);
+  // A light source in this sandbox is two things kept in sync: a real
+  // THREE.Light that actually illuminates the scene, and a small glowing
+  // gizmo the user can see, select and drag. Point lights and the
+  // directional "Sun" light share this same pattern, so both can be
+  // added, selected, moved, colored and deleted just like any shape.
+  var LIGHT_TYPES = {
+    point: {
+      label: 'Point Light',
+      defaultColor: 0xfff1d8,
+      defaultIntensity: 2.4,
+      intensityMax: 8,
+      make: function(){
+        var light = new THREE.PointLight(0xffffff, 1, 0, 2);
+        light.castShadow = true;
+        light.shadow.mapSize.set(1024, 1024);
+        light.shadow.camera.near = 0.5;
+        light.shadow.camera.far = 30;
+        light.shadow.bias = -0.002;
+        return light;
+      },
+      makeGizmo: function(){
+        var color = 0xffb454;
+        var g = new THREE.Group();
+        var core = new THREE.Mesh(new THREE.SphereGeometry(0.16, 20, 16), new THREE.MeshBasicMaterial({ color: color }));
+        var glow = new THREE.Mesh(new THREE.SphereGeometry(0.32, 20, 16), new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.22, depthWrite: false }));
+        g.add(core, glow);
+        g.userData.core = core;
+        g.userData.glow = glow;
+        return g;
+      }
+    },
+    sun: {
+      label: 'Sun',
+      defaultColor: 0xfff4e0,
+      defaultIntensity: 1.4,
+      intensityMax: 4,
+      make: function(){
+        // Direction comes from the light's own position pointing at a
+        // fixed target parked at the world origin — dragging the "sun"
+        // gizmo around is what changes the angle it shines from.
+        var light = new THREE.DirectionalLight(0xffffff, 1);
+        light.castShadow = true;
+        light.shadow.mapSize.set(1024, 1024);
+        light.shadow.camera.near = 1;
+        light.shadow.camera.far = 40;
+        light.shadow.camera.left = -12;
+        light.shadow.camera.right = 12;
+        light.shadow.camera.top = 12;
+        light.shadow.camera.bottom = -12;
+        light.shadow.bias = -0.0015;
+        light.target.position.set(0, 0, 0);
+        return light;
+      },
+      makeGizmo: function(){
+        var color = 0xffe9a8;
+        var g = new THREE.Group();
+        var core = new THREE.Mesh(new THREE.IcosahedronGeometry(0.2, 0), new THREE.MeshBasicMaterial({ color: color }));
+        var glow = new THREE.Mesh(new THREE.SphereGeometry(0.38, 20, 16), new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.16, depthWrite: false }));
+        g.add(core, glow);
+        g.userData.core = core;
+        g.userData.glow = glow;
+        return g;
+      }
+    }
+  };
 
-  var bulbColor = 0xffb454;
-  var lightGizmo = new THREE.Group();
-  lightGizmo.position.set(DEFAULT_LIGHT_POS[0], DEFAULT_LIGHT_POS[1], DEFAULT_LIGHT_POS[2]);
-  var bulbCore = new THREE.Mesh(
-    new THREE.SphereGeometry(0.16, 20, 16),
-    new THREE.MeshBasicMaterial({ color: bulbColor })
-  );
-  var bulbGlow = new THREE.Mesh(
-    new THREE.SphereGeometry(0.32, 20, 16),
-    new THREE.MeshBasicMaterial({ color: bulbColor, transparent: true, opacity: 0.22, depthWrite: false })
-  );
-  lightGizmo.add(bulbCore, bulbGlow);
-  lightGizmo.userData.selectable = true;
-  lightGizmo.userData.kind = 'light';
-  scene.add(lightGizmo);
-  pointLight.position.copy(lightGizmo.position);
-  pointLight.color.setHex(DEFAULT_LIGHT_COLOR);
-  bulbCore.material.color.setHex(bulbColor);
-  bulbGlow.material.color.setHex(bulbColor);
+  var lights = [];
+  var lightSpawnIndex = 0;
+
+  function spawnLightPosition(){
+    var angle = lightSpawnIndex * 1.4 + 0.6;
+    var radius = 4 + (lightSpawnIndex % 3) * 1.4;
+    return new THREE.Vector3(Math.cos(angle) * radius, 3.5 + (lightSpawnIndex % 2) * 1.2, Math.sin(angle) * radius);
+  }
+
+  function syncLightTransform(gizmo){
+    gizmo.userData.lightObj.position.copy(gizmo.position);
+  }
+
+  function addLight(type, position, color, intensity){
+    var def = LIGHT_TYPES[type];
+    if(!def) return null;
+    var lightObj = def.make();
+    var gizmo = def.makeGizmo();
+    gizmo.position.copy(position || spawnLightPosition());
+    gizmo.userData.selectable = true;
+    gizmo.userData.kind = 'light';
+    gizmo.userData.lightType = type;
+    gizmo.userData.lightObj = lightObj;
+    gizmo.userData.label = def.label;
+
+    var col = color != null ? color : def.defaultColor;
+    var inten = intensity != null ? intensity : def.defaultIntensity;
+    lightObj.color.setHex(col);
+    lightObj.intensity = inten;
+    gizmo.userData.core.material.color.setHex(col);
+    gizmo.userData.glow.material.color.setHex(col);
+
+    syncLightTransform(gizmo);
+    scene.add(gizmo);
+    scene.add(lightObj);
+    if(type === 'sun') scene.add(lightObj.target);
+
+    lights.push(gizmo);
+    lightSpawnIndex++;
+    return gizmo;
+  }
+
+  function addLightAndSelect(type){
+    pushHistory();
+    var gizmo = addLight(type);
+    select(gizmo);
+    updateHud();
+  }
+
+  function removeLight(gizmo, skipHistory){
+    if(!skipHistory) pushHistory();
+    if(selected === gizmo) deselect();
+    scene.remove(gizmo);
+    scene.remove(gizmo.userData.lightObj);
+    if(gizmo.userData.lightType === 'sun') scene.remove(gizmo.userData.lightObj.target);
+    gizmo.userData.core.material.dispose();
+    gizmo.userData.core.geometry.dispose();
+    gizmo.userData.glow.material.dispose();
+    gizmo.userData.glow.geometry.dispose();
+    if(gizmo.userData.lightObj.shadow && gizmo.userData.lightObj.shadow.map){
+      gizmo.userData.lightObj.shadow.map.dispose();
+    }
+    var idx = lights.indexOf(gizmo);
+    if(idx >= 0) lights.splice(idx, 1);
+    updateHud();
+  }
+
+  addLight('point', new THREE.Vector3(DEFAULT_LIGHT_POS[0], DEFAULT_LIGHT_POS[1], DEFAULT_LIGHT_POS[2]), DEFAULT_LIGHT_COLOR, DEFAULT_LIGHT_INTENSITY);
 
   // ---------------------------------------------------------------
   // Ground + background (Scene settings)
@@ -756,9 +877,6 @@
     orbit.enabled = !e.value;
     if(e.value) beginChange(); else commitChange();
   });
-  xform.addEventListener('objectChange', function(){
-    if(selected === lightGizmo){ pointLight.position.copy(lightGizmo.position); }
-  });
 
   // ---------------------------------------------------------------
   // Camera presets
@@ -793,6 +911,39 @@
   var PRESET_ORDER = ['matte','metallic','mirror','clear'];
   var PRESET_LABEL = { matte:'Matte', metallic:'Metallic', mirror:'Mirror', clear:'Clear' };
   var PRESET_SWATCH = { matte:'#9aa1af', metallic:'#c9902f', mirror:'#e7ebf2', clear:'#bfe0e8' };
+  var GLOW_DEFAULT_COLOR = '#ffcc66';
+  var GLOW_DEFAULT_INTENSITY = 1.2;
+
+  // A glowing object is also a real light source: turning Glow on gives
+  // the object's root a small THREE.PointLight (parented to it, so it
+  // always tracks the object's position for free) that actually lights
+  // up whatever's nearby — including softening the object's own shadow,
+  // since this light shines straight into the shadow the *other* lights
+  // cast for it. It never casts its own shadow, to keep the extra cost
+  // small and avoid a second shadow map per glowing object.
+  var GLOW_LIGHT_SCALE = 2.2;
+  var GLOW_LIGHT_DISTANCE = 9;
+  var GLOW_LIGHT_DECAY = 2;
+
+  function ensureGlowLight(root){
+    if(root.userData.glowLight) return root.userData.glowLight;
+    var light = new THREE.PointLight(0xffffff, 0, GLOW_LIGHT_DISTANCE, GLOW_LIGHT_DECAY);
+    light.castShadow = false;
+    root.add(light);
+    root.userData.glowLight = light;
+    return light;
+  }
+  function removeGlowLight(root){
+    if(!root.userData.glowLight) return;
+    root.remove(root.userData.glowLight);
+    root.userData.glowLight = null;
+  }
+  function syncGlowLightIntensity(root){
+    if(!root.userData.glowLight) return;
+    var mat = firstMaterial(root);
+    var v = mat && mat.emissiveIntensity ? mat.emissiveIntensity : 0;
+    root.userData.glowLight.intensity = v * GLOW_LIGHT_SCALE;
+  }
 
   function eachMaterial(root, fn){
     root.traverse(function(o){
@@ -809,20 +960,10 @@
     eachMaterial(root, function(m){
       m.metalness = p.metalness;
       m.roughness = p.roughness;
-      m.transparent = p.transparent;
-      m.opacity = p.opacity;
-      m.depthWrite = !p.transparent;
       m.needsUpdate = true;
     });
+    applyOpacity(root, p.opacity);
     root.userData.preset = key;
-    // Three.js shadow maps render every caster as a solid silhouette —
-    // they don't look at opacity/transparency at all — so a see-through
-    // "Clear" object was casting the same heavy dark shadow as a solid
-    // matte one. There's no cheap way to make that shadow proportionally
-    // lighter, so transparent presets simply stop casting a shadow.
-    root.traverse(function(o){
-      if(o.isMesh) o.castShadow = !p.transparent;
-    });
     updateReflectionProbe(root);
   }
 
@@ -836,6 +977,154 @@
   }
   function applyMetalness(root, v){
     eachMaterial(root, function(m){ if('metalness' in m){ m.metalness = v; } });
+  }
+  // Three.js shadow maps render every caster as a solid silhouette and
+  // have no per-object "shadow darkness" knob. The seemingly-obvious fix —
+  // give the object's shadow pass its own customDepthMaterial with a
+  // dithered alphaMap, alpha-tested against opacity — doesn't actually
+  // work in this version: WebGLShadowMap unconditionally overwrites a
+  // custom depth material's alphaMap/alphaTest with the REAL material's
+  // every single frame (see getDepthMaterial() in three's shadow-map
+  // source), so anything set on the custom material gets clobbered before
+  // it ever renders. And setting alphaMap/alphaTest on the real material
+  // instead isn't an option either — alphaTest also runs in the main
+  // color pass, so it would punch actual holes in the object itself
+  // rather than keeping it smoothly translucent.
+  //
+  // So instead: a partially-transparent object skips the real shadow map
+  // (as before) and gets a soft round "contact shadow" decal on the
+  // ground — one per active light, not just one centered under the
+  // object, so it actually falls in the direction that light casts a
+  // shadow rather than looking like the light is straight overhead. Each
+  // decal's ground position is a proper light→object→ground projection
+  // (the same geometry a real point-light shadow uses), and its opacity
+  // is a share of the object's own opacity split across however many
+  // lights are active, so N overlapping decals don't add up darker than
+  // one real shadow would. Genuinely continuous, correctly nothing at
+  // opacity 0, and it hands off to the real, sharper shadow once opacity
+  // reaches 1. The one honest limitation: like any decal, it only shows
+  // up on the ground, not on other objects the way a real shadow would.
+  var BLOB_SHADOW_MAX_OPACITY = 0.55;
+  var blobShadowTex = null;
+  function getBlobShadowTexture(){
+    if(blobShadowTex) return blobShadowTex;
+    var size = 128;
+    var canvas = document.createElement('canvas');
+    canvas.width = size; canvas.height = size;
+    var ctx = canvas.getContext('2d');
+    var grad = ctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
+    grad.addColorStop(0, 'rgba(0,0,0,1)');
+    grad.addColorStop(0.7, 'rgba(0,0,0,0.55)');
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, size, size);
+    blobShadowTex = new THREE.CanvasTexture(canvas);
+    return blobShadowTex;
+  }
+  function createBlobShadowMesh(){
+    var mat = new THREE.MeshBasicMaterial({
+      map: getBlobShadowTexture(),
+      color: 0x000000,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false
+    });
+    var blob = new THREE.Mesh(new THREE.CircleGeometry(1, 32), mat);
+    blob.rotation.x = -Math.PI / 2;
+    blob.renderOrder = 1;
+    scene.add(blob);
+    return blob;
+  }
+  function disposeBlobShadowMesh(mesh){
+    scene.remove(mesh);
+    mesh.geometry.dispose();
+    mesh.material.dispose();
+  }
+  function removeAllBlobShadows(root){
+    if(!root.userData.blobShadows) return;
+    root.userData.blobShadows.forEach(function(entry){ disposeBlobShadowMesh(entry.mesh); });
+    root.userData.blobShadows = null;
+  }
+  var blobBox = new THREE.Box3();
+  var blobSize = new THREE.Vector3();
+  var blobLightPos = new THREE.Vector3();
+  var blobObjPos = new THREE.Vector3();
+  // Projects where a light-to-object ray continues on to hit the ground
+  // (y = 0) — the same geometry that puts a real shadow on the far side
+  // of an object from its light, not directly underneath it.
+  function projectGroundShadowPoint(lightPos, objPos, out){
+    var denom = lightPos.y - objPos.y;
+    var t = Math.abs(denom) < 1e-4 ? 1 : (lightPos.y / denom);
+    if(t < 1) t = 1;
+    if(t > 40) t = 40;
+    out.x = lightPos.x + t * (objPos.x - lightPos.x);
+    out.z = lightPos.z + t * (objPos.z - lightPos.z);
+    out.y = 0.015;
+  }
+  function updateBlobShadowsForObject(root, v){
+    var partial = v > 0.001 && v < 0.999;
+    if(!partial){
+      removeAllBlobShadows(root);
+      return;
+    }
+    if(!root.userData.blobShadows) root.userData.blobShadows = [];
+    var entries = root.userData.blobShadows;
+
+    // Drop decals for lights that no longer exist, add decals for any
+    // light that doesn't have one yet — keeps this in sync every frame
+    // even as lights get added/removed while the object stays translucent.
+    for(var i = entries.length - 1; i >= 0; i--){
+      if(lights.indexOf(entries[i].light) === -1){
+        disposeBlobShadowMesh(entries[i].mesh);
+        entries.splice(i, 1);
+      }
+    }
+    lights.forEach(function(l){
+      var has = entries.some(function(e){ return e.light === l; });
+      if(!has) entries.push({ light: l, mesh: createBlobShadowMesh() });
+    });
+
+    if(!entries.length) return;
+
+    blobBox.setFromObject(root);
+    blobBox.getSize(blobSize);
+    var radius = Math.max(blobSize.x, blobSize.z, 0.3) * 0.65;
+    root.getWorldPosition(blobObjPos);
+    var perLightOpacity = (v * BLOB_SHADOW_MAX_OPACITY) / entries.length;
+
+    entries.forEach(function(entry){
+      entry.light.getWorldPosition(blobLightPos);
+      projectGroundShadowPoint(blobLightPos, blobObjPos, entry.mesh.position);
+      entry.mesh.scale.set(radius, radius, 1);
+      entry.mesh.material.opacity = perLightOpacity;
+    });
+  }
+  function applyOpacity(root, v){
+    eachMaterial(root, function(m){
+      m.opacity = v;
+      m.transparent = v < 0.999;
+      m.depthWrite = v >= 0.999;
+      m.needsUpdate = true;
+    });
+    root.traverse(function(o){ if(o.isMesh) o.castShadow = v >= 0.999; });
+    updateBlobShadowsForObject(root, v);
+  }
+  function applyEmissiveColor(root, hex){
+    eachMaterial(root, function(m){ if(m.emissive) m.emissive.set(hex); });
+    if(new THREE.Color(hex).getHex() === 0){
+      removeGlowLight(root);
+    } else {
+      var light = ensureGlowLight(root);
+      light.color.set(hex);
+      syncGlowLightIntensity(root);
+    }
+  }
+  function applyEmissiveIntensity(root, v){
+    eachMaterial(root, function(m){ if('emissiveIntensity' in m) m.emissiveIntensity = v; });
+    syncGlowLightIntensity(root);
+  }
+  function applyClearcoat(root, v){
+    eachMaterial(root, function(m){ if('clearcoat' in m) m.clearcoat = v; });
   }
   function firstMaterial(root){
     var found = null;
@@ -913,7 +1202,12 @@
   function createPrimitive(type){
     var def = SHAPE_DEFS[type];
     if(!def) return null;
-    var mat = new THREE.MeshStandardMaterial({ envMap: envMap });
+    // MeshPhysicalMaterial is a superset of MeshStandardMaterial — same
+    // color/roughness/metalness/envMap/opacity behavior, plus clearcoat
+    // for the "Clearcoat" knob. clearcoatRoughness is fixed at creation
+    // (a glossy top coat reads as car paint); only the coat amount itself
+    // is a user-facing slider, to keep the inspector from getting too busy.
+    var mat = new THREE.MeshPhysicalMaterial({ envMap: envMap, clearcoatRoughness: 0.12 });
     var mesh = new THREE.Mesh(def.make(), mat);
     mesh.userData.shapeType = type;
     return { mesh: mesh, halfHeight: def.halfHeight, label: def.label };
@@ -946,6 +1240,8 @@
   document.getElementById('addBox').addEventListener('click', function(){ addShape('box'); });
   document.getElementById('addSphere').addEventListener('click', function(){ addShape('sphere'); });
   document.getElementById('addCylinder').addEventListener('click', function(){ addShape('cylinder'); });
+  document.getElementById('addPointLight').addEventListener('click', function(){ addLightAndSelect('point'); });
+  document.getElementById('addSunLight').addEventListener('click', function(){ addLightAndSelect('sun'); });
 
   // ---------------------------------------------------------------
   // Import (.glb / .gltf)
@@ -1026,7 +1322,7 @@
   }
 
   function raycastTargets(){
-    return objects.concat([lightGizmo]);
+    return objects.concat(lights);
   }
 
   canvas.addEventListener('pointerdown', function(e){
@@ -1096,9 +1392,13 @@
     if(!skipHistory) pushHistory();
     if(selected === obj) deselect();
     disposeOwnProbe(obj);
+    removeGlowLight(obj);
+    removeAllBlobShadows(obj);
     scene.remove(obj);
     eachMaterial(obj, function(m){ m.dispose(); });
-    obj.traverse(function(o){ if(o.isMesh && o.geometry) o.geometry.dispose(); });
+    obj.traverse(function(o){
+      if(o.isMesh && o.geometry) o.geometry.dispose();
+    });
     var idx = objects.indexOf(obj);
     if(idx >= 0) objects.splice(idx, 1);
     updateHud();
@@ -1125,14 +1425,22 @@
           preset: o.userData.preset,
           color: o.userData.color,
           roughness: m ? m.roughness : undefined,
-          metalness: m ? m.metalness : undefined
+          metalness: m ? m.metalness : undefined,
+          opacity: m ? m.opacity : undefined,
+          emissive: m && m.emissive ? '#' + m.emissive.getHexString() : undefined,
+          emissiveIntensity: m ? m.emissiveIntensity : undefined,
+          clearcoat: m && ('clearcoat' in m) ? m.clearcoat : undefined
         };
       }),
-      light: {
-        pos: lightGizmo.position.clone(),
-        color: pointLight.color.getHex(),
-        intensity: pointLight.intensity
-      },
+      lights: lights.map(function(l){
+        var lo = l.userData.lightObj;
+        return {
+          ref: l,
+          pos: l.position.clone(),
+          color: lo.color.getHex(),
+          intensity: lo.intensity
+        };
+      }),
       groundColor: sceneState.groundColor,
       groundTexture: sceneState.groundTexture,
       bgPreset: sceneState.bgPreset
@@ -1145,6 +1453,13 @@
       if(!stillThere){
         if(selected === o) selected = null;
         scene.remove(o);
+        // The blob shadow decals live as their own sibling scene objects
+        // (so they can stay flat on the ground regardless of the object's
+        // own rotation), not children of o — scene.remove(o) above
+        // doesn't touch them, so they have to be cleaned up explicitly
+        // here. They get recreated for free by applyOpacity() below
+        // if/when redo brings this object back.
+        removeAllBlobShadows(o);
       }
     });
     objects.length = 0;
@@ -1157,21 +1472,44 @@
       if(s.color) applyColor(s.ref, s.color);
       if(typeof s.roughness === 'number') applyRoughness(s.ref, s.roughness);
       if(typeof s.metalness === 'number') applyMetalness(s.ref, s.metalness);
+      if(typeof s.opacity === 'number') applyOpacity(s.ref, s.opacity);
+      if(s.emissive) applyEmissiveColor(s.ref, s.emissive);
+      if(typeof s.emissiveIntensity === 'number') applyEmissiveIntensity(s.ref, s.emissiveIntensity);
+      if(typeof s.clearcoat === 'number') applyClearcoat(s.ref, s.clearcoat);
       updateReflectionProbe(s.ref);
       objects.push(s.ref);
     });
 
-    lightGizmo.position.copy(snap.light.pos);
-    pointLight.color.setHex(snap.light.color);
-    pointLight.intensity = snap.light.intensity;
-    bulbCore.material.color.setHex(snap.light.color);
-    bulbGlow.material.color.setHex(snap.light.color);
+    lights.slice().forEach(function(l){
+      var stillThere = snap.lights.some(function(s){ return s.ref === l; });
+      if(!stillThere){
+        if(selected === l) selected = null;
+        scene.remove(l);
+        scene.remove(l.userData.lightObj);
+        if(l.userData.lightType === 'sun') scene.remove(l.userData.lightObj.target);
+      }
+    });
+    lights.length = 0;
+    snap.lights.forEach(function(s){
+      if(s.ref.parent !== scene){
+        scene.add(s.ref);
+        scene.add(s.ref.userData.lightObj);
+        if(s.ref.userData.lightType === 'sun') scene.add(s.ref.userData.lightObj.target);
+      }
+      s.ref.position.copy(s.pos);
+      syncLightTransform(s.ref);
+      s.ref.userData.lightObj.color.setHex(s.color);
+      s.ref.userData.lightObj.intensity = s.intensity;
+      s.ref.userData.core.material.color.setHex(s.color);
+      s.ref.userData.glow.material.color.setHex(s.color);
+      lights.push(s.ref);
+    });
 
     setGroundColor(snap.groundColor);
     setGroundTexture(snap.groundTexture);
     setBackgroundPreset(snap.bgPreset);
 
-    if(selected && objects.indexOf(selected) === -1 && selected !== lightGizmo) selected = null;
+    if(selected && objects.indexOf(selected) === -1 && lights.indexOf(selected) === -1) selected = null;
     if(selected) xform.attach(selected); else xform.detach();
     renderInspector();
     renderOutliner();
@@ -1255,19 +1593,28 @@
         preset: o.userData.preset,
         color: o.userData.color,
         roughness: m ? m.roughness : undefined,
-        metalness: m ? m.metalness : undefined
+        metalness: m ? m.metalness : undefined,
+        opacity: m ? m.opacity : undefined,
+        emissive: m && m.emissive ? '#' + m.emissive.getHexString() : undefined,
+        emissiveIntensity: m ? m.emissiveIntensity : undefined,
+        clearcoat: m && ('clearcoat' in m) ? m.clearcoat : undefined
       });
     });
+    var lightsOut = lights.map(function(l){
+      var lo = l.userData.lightObj;
+      return {
+        type: l.userData.lightType,
+        position: l.position.toArray(),
+        color: lo.color.getHex(),
+        intensity: lo.intensity
+      };
+    });
     return {
-      version: 1,
+      version: 2,
       objects: prims,
       skippedImports: skipped,
       placedCount: placedCount,
-      light: {
-        position: lightGizmo.position.toArray(),
-        color: pointLight.color.getHex(),
-        intensity: pointLight.intensity
-      },
+      lights: lightsOut,
       ground: { color: sceneState.groundColor, texture: sceneState.groundTexture },
       background: sceneState.bgPreset
     };
@@ -1297,6 +1644,7 @@
     pushHistory();
 
     objects.slice().forEach(function(o){ removeObject(o, true); });
+    lights.slice().forEach(function(l){ removeLight(l, true); });
 
     (data.objects || []).forEach(function(s){
       if(!SHAPE_DEFS[s.shapeType]) return;
@@ -1314,18 +1662,32 @@
       applyColor(mesh, s.color || nextSpawnColor());
       if(typeof s.roughness === 'number') applyRoughness(mesh, s.roughness);
       if(typeof s.metalness === 'number') applyMetalness(mesh, s.metalness);
+      if(typeof s.opacity === 'number') applyOpacity(mesh, s.opacity);
+      if(s.emissive) applyEmissiveColor(mesh, s.emissive);
+      if(typeof s.emissiveIntensity === 'number') applyEmissiveIntensity(mesh, s.emissiveIntensity);
+      if(typeof s.clearcoat === 'number') applyClearcoat(mesh, s.clearcoat);
       updateReflectionProbe(mesh);
       scene.add(mesh);
       objects.push(mesh);
     });
 
-    if(data.light){
-      lightGizmo.position.fromArray(data.light.position || DEFAULT_LIGHT_POS);
-      pointLight.color.setHex(data.light.color != null ? data.light.color : DEFAULT_LIGHT_COLOR);
-      pointLight.intensity = typeof data.light.intensity === 'number' ? data.light.intensity : DEFAULT_LIGHT_INTENSITY;
-      bulbCore.material.color.copy(pointLight.color);
-      bulbGlow.material.color.copy(pointLight.color);
+    // "lights" is the current format (an array, any mix of point/sun);
+    // "light" (singular) is what Phase 1 saves used — a single point
+    // light — kept working here so those older saves still load.
+    var lightsData = data.lights;
+    if(!lightsData && data.light){
+      lightsData = [{ type: 'point', position: data.light.position, color: data.light.color, intensity: data.light.intensity }];
     }
+    (lightsData || []).forEach(function(s){
+      if(!LIGHT_TYPES[s.type]) return;
+      var pos = s.position ? new THREE.Vector3(s.position[0], s.position[1], s.position[2]) : null;
+      addLight(s.type, pos, s.color, s.intensity);
+    });
+    if(!lights.length){
+      // Never load into total darkness even if a save somehow had no lights.
+      addLight('point', new THREE.Vector3(DEFAULT_LIGHT_POS[0], DEFAULT_LIGHT_POS[1], DEFAULT_LIGHT_POS[2]), DEFAULT_LIGHT_COLOR, DEFAULT_LIGHT_INTENSITY);
+    }
+
     if(data.ground){
       setGroundColor(data.ground.color);
       var groundTexKey = data.ground.texture;
@@ -1362,9 +1724,10 @@
     if(e.key === 'w' || e.key === 'W') setMode('translate');
     else if(e.key === 'e' || e.key === 'E') setMode('rotate');
     else if(e.key === 'r' || e.key === 'R') setMode('scale');
-    else if((e.key === 'Delete' || e.key === 'Backspace') && selected && selected !== lightGizmo){
+    else if((e.key === 'Delete' || e.key === 'Backspace') && selected){
       e.preventDefault();
-      removeObject(selected);
+      if(selected.userData.kind === 'light') removeLight(selected);
+      else removeObject(selected);
     } else if(e.key === 'Escape'){
       deselect();
     }
@@ -1384,33 +1747,42 @@
     if(!selected){ renderScenePanel(); return; }
 
     if(selected.userData.kind === 'light'){
+      var lightObj = selected.userData.lightObj;
+      var lightDef = LIGHT_TYPES[selected.userData.lightType];
       inspector.innerHTML =
         '<div class="insp-head">' +
-          '<div class="insp-title"><span class="panel-kind">Light source</span><span class="insp-name">Point light</span></div>' +
+          '<div class="insp-title"><span class="panel-kind">Light source</span><span class="insp-name">' + escapeHtml(selected.userData.label) + '</span></div>' +
+          '<button class="iconbtn" id="deleteLightBtn" title="Delete">' + svgTrash() + '</button>' +
         '</div>' +
         '<hr class="sep">' +
         '<div>' +
           '<span class="field-label">Color</span>' +
-          '<input type="color" id="lightColor" value="#' + pointLight.color.getHexString() + '">' +
+          '<input type="color" id="lightColor" value="#' + lightObj.color.getHexString() + '">' +
         '</div>' +
         '<div class="slider-row">' +
           '<div class="row between"><span class="field-label" style="margin:0">Intensity</span><span class="val mono" id="lightIntVal"></span></div>' +
-          '<input type="range" id="lightIntensity" min="0" max="8" step="0.1">' +
+          '<input type="range" id="lightIntensity" min="0" max="' + lightDef.intensityMax + '" step="0.1">' +
         '</div>' +
-        '<div style="font-size:12px;color:var(--text-dim);line-height:1.5">Drag the glowing sphere in the scene to move the light around.</div>';
+        '<div style="font-size:12px;color:var(--text-dim);line-height:1.5">' +
+          (selected.userData.lightType === 'sun'
+            ? 'Drag the glowing marker to change the angle the sun shines from.'
+            : 'Drag the glowing sphere in the scene to move the light around.') +
+        '</div>';
+
+      document.getElementById('deleteLightBtn').addEventListener('click', function(){ removeLight(selected); });
 
       wireContinuous(document.getElementById('lightColor'), function(e){
-        pointLight.color.set(e.target.value);
-        bulbCore.material.color.set(e.target.value);
-        bulbGlow.material.color.set(e.target.value);
+        lightObj.color.set(e.target.value);
+        selected.userData.core.material.color.set(e.target.value);
+        selected.userData.glow.material.color.set(e.target.value);
       });
       var intInput = document.getElementById('lightIntensity');
       var intVal = document.getElementById('lightIntVal');
-      intInput.value = pointLight.intensity;
-      intVal.textContent = pointLight.intensity.toFixed(1);
+      intInput.value = lightObj.intensity;
+      intVal.textContent = lightObj.intensity.toFixed(1);
       wireContinuous(intInput, function(e){
-        pointLight.intensity = parseFloat(e.target.value);
-        intVal.textContent = pointLight.intensity.toFixed(1);
+        lightObj.intensity = parseFloat(e.target.value);
+        intVal.textContent = lightObj.intensity.toFixed(1);
       });
       updateHud();
       return;
@@ -1420,6 +1792,9 @@
     var mat = firstMaterial(selected);
     var presetKey = selected.userData.preset || 'matte';
     var label = selected.userData.label || 'Shape';
+    var supportsEmissive = !!(mat && mat.emissive);
+    var supportsClearcoat = !!(mat && ('clearcoat' in mat));
+    var isGlowing = supportsEmissive && mat.emissive.getHex() !== 0;
 
     var presetsHtml = PRESET_ORDER.map(function(key){
       var sel = key === presetKey ? ' selected' : '';
@@ -1427,6 +1802,17 @@
         '<span class="swatch" style="background:' + PRESET_SWATCH[key] + '"></span>' + PRESET_LABEL[key] +
         '</button>';
     }).join('');
+
+    var glowFieldsHtml = isGlowing ?
+      '<div class="row between">' +
+        '<span class="field-label" style="margin:0">Glow color</span>' +
+        '<input type="color" id="glowColor" value="#' + mat.emissive.getHexString() + '">' +
+      '</div>' +
+      '<div class="slider-row">' +
+        '<div class="row between"><span class="field-label" style="margin:0">Glow intensity</span><span class="val mono" id="glowIntVal"></span></div>' +
+        '<input type="range" id="glowIntensity" min="0" max="3" step="0.05">' +
+      '</div>'
+      : '';
 
     inspector.innerHTML =
       '<div class="insp-head">' +
@@ -1449,7 +1835,20 @@
       '<div class="slider-row">' +
         '<div class="row between"><span class="field-label" style="margin:0">Metalness</span><span class="val mono" id="metalVal"></span></div>' +
         '<input type="range" id="metalness" min="0" max="1" step="0.01">' +
-      '</div>';
+      '</div>' +
+      '<div class="slider-row">' +
+        '<div class="row between"><span class="field-label" style="margin:0">Opacity</span><span class="val mono" id="opacityVal"></span></div>' +
+        '<input type="range" id="opacity" min="0" max="1" step="0.01">' +
+      '</div>' +
+      (supportsClearcoat ?
+        '<div class="slider-row">' +
+          '<div class="row between"><span class="field-label" style="margin:0">Clearcoat</span><span class="val mono" id="coatVal"></span></div>' +
+          '<input type="range" id="clearcoat" min="0" max="1" step="0.01">' +
+        '</div>'
+        : '') +
+      (supportsEmissive ?
+        '<button class="toggle-btn' + (isGlowing ? ' on' : '') + '" id="glowToggle">Glow<span class="pip"></span></button>' + glowFieldsHtml
+        : '');
 
     document.getElementById('deleteBtn').addEventListener('click', function(){ removeObject(selected); });
 
@@ -1484,6 +1883,52 @@
       metalVal.textContent = parseFloat(e.target.value).toFixed(2);
       updateReflectionProbe(selected);
     });
+
+    var opacityInput = document.getElementById('opacity');
+    var opacityVal = document.getElementById('opacityVal');
+    opacityInput.value = m0 ? m0.opacity : 1;
+    opacityVal.textContent = parseFloat(opacityInput.value).toFixed(2);
+    wireContinuous(opacityInput, function(e){
+      applyOpacity(selected, parseFloat(e.target.value));
+      opacityVal.textContent = parseFloat(e.target.value).toFixed(2);
+    });
+
+    if(supportsClearcoat){
+      var coatInput = document.getElementById('clearcoat');
+      var coatVal = document.getElementById('coatVal');
+      coatInput.value = m0 ? m0.clearcoat : 0;
+      coatVal.textContent = parseFloat(coatInput.value).toFixed(2);
+      wireContinuous(coatInput, function(e){
+        applyClearcoat(selected, parseFloat(e.target.value));
+        coatVal.textContent = parseFloat(e.target.value).toFixed(2);
+      });
+    }
+
+    if(supportsEmissive){
+      document.getElementById('glowToggle').addEventListener('click', function(){
+        pushHistory();
+        if(isGlowing){
+          applyEmissiveColor(selected, '#000000');
+        } else {
+          applyEmissiveColor(selected, GLOW_DEFAULT_COLOR);
+          applyEmissiveIntensity(selected, GLOW_DEFAULT_INTENSITY);
+        }
+        renderInspector();
+      });
+      if(isGlowing){
+        wireContinuous(document.getElementById('glowColor'), function(e){
+          applyEmissiveColor(selected, e.target.value);
+        });
+        var glowIntInput = document.getElementById('glowIntensity');
+        var glowIntVal = document.getElementById('glowIntVal');
+        glowIntInput.value = mat.emissiveIntensity != null ? mat.emissiveIntensity : GLOW_DEFAULT_INTENSITY;
+        glowIntVal.textContent = parseFloat(glowIntInput.value).toFixed(2);
+        wireContinuous(glowIntInput, function(e){
+          applyEmissiveIntensity(selected, parseFloat(e.target.value));
+          glowIntVal.textContent = parseFloat(e.target.value).toFixed(2);
+        });
+      }
+    }
 
     updateHud();
   }
@@ -1563,34 +2008,48 @@
     setOutlinerOpen(!outlinerEl.classList.contains('open'));
   });
 
-  function outlinerRowHtml(idx, name, color, removable, isSelected){
-    return '<div class="outliner-row' + (isSelected ? ' selected' : '') + '" data-idx="' + idx + '">' +
+  function outlinerRowHtml(key, name, color, removable, isSelected){
+    return '<div class="outliner-row' + (isSelected ? ' selected' : '') + '" data-key="' + key + '">' +
       '<span class="dot2" style="background:' + color + '"></span>' +
       '<span class="name">' + escapeHtml(name) + '</span>' +
-      (removable ? '<button class="rm" data-idx="' + idx + '" title="Delete">' + svgTrash() + '</button>' : '') +
+      (removable ? '<button class="rm" data-key="' + key + '" title="Delete">' + svgTrash() + '</button>' : '') +
       '</div>';
   }
 
   function renderOutliner(){
     var rows = [];
-    rows.push(outlinerRowHtml(-1, 'Light', '#' + pointLight.color.getHexString(), false, selected === lightGizmo));
+    lights.forEach(function(l, i){
+      rows.push(outlinerRowHtml('light:' + i, l.userData.label || 'Light', '#' + l.userData.lightObj.color.getHexString(), true, selected === l));
+    });
     objects.forEach(function(o, i){
-      rows.push(outlinerRowHtml(i, o.userData.label || 'Shape', o.userData.color || '#8fa3c7', true, selected === o));
+      rows.push(outlinerRowHtml('obj:' + i, o.userData.label || 'Shape', o.userData.color || '#8fa3c7', true, selected === o));
     });
     outlinerListEl.innerHTML = rows.join('');
 
     Array.prototype.forEach.call(outlinerListEl.querySelectorAll('.outliner-row'), function(row){
       row.addEventListener('click', function(e){
         if(e.target.closest('.rm')) return;
-        var idx = parseInt(row.getAttribute('data-idx'), 10);
-        select(idx === -1 ? lightGizmo : objects[idx]);
+        var key = row.getAttribute('data-key');
+        var parts = key.split(':');
+        var idx = parseInt(parts[1], 10);
+        if(parts[0] === 'light'){
+          if(lights[idx]) select(lights[idx]);
+        } else {
+          if(objects[idx]) select(objects[idx]);
+        }
       });
     });
     Array.prototype.forEach.call(outlinerListEl.querySelectorAll('.rm'), function(btn){
       btn.addEventListener('click', function(e){
         e.stopPropagation();
-        var idx = parseInt(btn.getAttribute('data-idx'), 10);
-        if(idx >= 0 && objects[idx]) removeObject(objects[idx]);
+        var key = btn.getAttribute('data-key');
+        var parts = key.split(':');
+        var idx = parseInt(parts[1], 10);
+        if(parts[0] === 'light'){
+          if(lights[idx]) removeLight(lights[idx]);
+        } else {
+          if(objects[idx]) removeObject(objects[idx]);
+        }
       });
     });
   }
@@ -1606,7 +2065,7 @@
     objCountEl.textContent = objects.length;
     if(selected){
       selPillEl.style.display = '';
-      selNameEl.textContent = selected.userData.kind === 'light' ? 'Light' : (selected.userData.label || 'Shape');
+      selNameEl.textContent = selected.userData.label || (selected.userData.kind === 'light' ? 'Light' : 'Shape');
     } else {
       selPillEl.style.display = 'none';
     }
@@ -1630,7 +2089,13 @@
   var probeWorldPos = new THREE.Vector3();
   function tick(){
     orbit.update();
-    pointLight.position.copy(lightGizmo.position);
+    lights.forEach(function(l){ syncLightTransform(l); });
+    objects.forEach(function(o){
+      if(o.userData.blobShadows){
+        var m = firstMaterial(o);
+        updateBlobShadowsForObject(o, m ? m.opacity : 1);
+      }
+    });
     scene.updateMatrixWorld();
 
     var gizmoWasVisible = xform.visible;
