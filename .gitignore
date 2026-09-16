@@ -1,0 +1,3 @@
+build/
+renders/*.ppm
+renders/*.png
