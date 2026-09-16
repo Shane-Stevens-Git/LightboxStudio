@@ -423,6 +423,9 @@
     <button class="tbtn iconOnly" id="loadBtn" title="Load saved scene">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7h6l2 2h10v10H3V7Z"/></svg>
     </button>
+    <button class="tbtn iconOnly" id="exportRtBtn" title="Export for Ray Tracer (scene.json)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 19h16"/></svg>
+    </button>
   </div>
 
   <div class="toolgroup">
@@ -1706,6 +1709,219 @@
 
   document.getElementById('saveBtn').addEventListener('click', saveScene);
   document.getElementById('loadBtn').addEventListener('click', loadScene);
+
+  // ---------------------------------------------------------------
+  // Export for Ray Tracer (Phase 3)
+  //
+  // Produces a scene.json the companion C++ ray tracer can load
+  // directly (see src/main.cpp's render_from_scene_file). One-way,
+  // sandbox -> final render: this is an export, not a save format --
+  // loading it back into Lightbox Studio isn't supported.
+  //
+  // Spheres with uniform scale export as native spheres (exact, cheap).
+  // Everything else -- box/cylinder primitives (which can be rotated
+  // arbitrarily) and imported glTF models -- gets triangulated here in
+  // the browser, where three.js already has the exact world-space
+  // geometry, rather than writing separate box/cylinder intersection
+  // code in C++. Sun/Point lights and glowing objects become emissive
+  // ("diffuse_light") spheres, since the tracer has no other concept of
+  // a discrete light source.
+  // ---------------------------------------------------------------
+  var RT_GLOW_EXPORT_SCALE = 3.0;
+  var RT_POINT_LIGHT_EXPORT_SCALE = 0.6;
+  var RT_SUN_EXPORT_SCALE = 1.1;
+  var RT_SUN_DISTANCE = 200;
+  var RT_SUN_RADIUS = 30;
+
+  function rtRound(n){ return Math.round(n * 1000) / 1000; }
+
+  function rtIsUniformScale(v, eps){
+    eps = eps || 0.01;
+    return Math.abs(v.x - v.y) < eps && Math.abs(v.y - v.z) < eps;
+  }
+
+  // Walks every mesh under root, applies each one's world matrix, and
+  // flattens the result to a plain list of world-space triangles —
+  // works the same way whether root is a single-mesh primitive (box,
+  // cylinder) or a multi-mesh imported glTF scene graph.
+  function rtMeshToTriangles(root){
+    var tris = [];
+    root.updateWorldMatrix(true, false);
+    var v = new THREE.Vector3();
+    root.traverse(function(o){
+      if(!o.isMesh || !o.geometry) return;
+      var geom = o.geometry;
+      var posAttr = geom.attributes && geom.attributes.position;
+      if(!posAttr) return;
+      var idx = geom.index;
+      var m = o.matrixWorld;
+
+      function vertexAt(i){
+        v.fromBufferAttribute(posAttr, i);
+        v.applyMatrix4(m);
+        return [rtRound(v.x), rtRound(v.y), rtRound(v.z)];
+      }
+
+      if(idx){
+        for(var i = 0; i + 2 < idx.count; i += 3){
+          tris.push([vertexAt(idx.getX(i)), vertexAt(idx.getX(i + 1)), vertexAt(idx.getX(i + 2))]);
+        }
+      } else {
+        for(var i = 0; i + 2 < posAttr.count; i += 3){
+          tris.push([vertexAt(i), vertexAt(i + 1), vertexAt(i + 2)]);
+        }
+      }
+    });
+    return tris;
+  }
+
+  function rtMaterialForObject(o){
+    var m = firstMaterial(o);
+    if(!m) return { type: 'lambertian', albedo: [0.7, 0.7, 0.7] };
+
+    var emissiveIntensity = m.emissiveIntensity || 0;
+    if(emissiveIntensity > 0.001 && m.emissive && (m.emissive.r || m.emissive.g || m.emissive.b)){
+      // Glowing objects export as pure light (no reflective base color),
+      // matching the Ray Tracing in One Weekend/Next Week convention
+      // for emissive materials that the tracer's diffuse_light follows.
+      var e = m.emissive.clone().multiplyScalar(emissiveIntensity * RT_GLOW_EXPORT_SCALE);
+      return { type: 'diffuse_light', emit: [rtRound(e.r), rtRound(e.g), rtRound(e.b)] };
+    }
+
+    var col = new THREE.Color(o.userData.color || (m.color ? '#' + m.color.getHexString() : '#ffffff'));
+
+    if(typeof m.opacity === 'number' && m.opacity < 0.999){
+      return { type: 'dielectric', ior: 1.5 };
+    }
+    if(typeof m.metalness === 'number' && m.metalness >= 0.5){
+      var fuzz = typeof m.roughness === 'number' ? Math.min(m.roughness, 1) : 0.1;
+      return { type: 'metal', albedo: [rtRound(col.r), rtRound(col.g), rtRound(col.b)], fuzz: rtRound(fuzz) };
+    }
+    return { type: 'lambertian', albedo: [rtRound(col.r), rtRound(col.g), rtRound(col.b)] };
+  }
+
+  function rtExportObjects(){
+    var out = [];
+    var worldPos = new THREE.Vector3();
+    objects.forEach(function(o){
+      var mat = rtMaterialForObject(o);
+      if(o.userData.shapeType === 'sphere' && !o.userData.imported && rtIsUniformScale(o.scale)){
+        o.getWorldPosition(worldPos);
+        var radius = 0.6 * o.scale.x; // SHAPE_DEFS.sphere's base geometry radius is 0.6
+        out.push({
+          type: 'sphere',
+          center: [rtRound(worldPos.x), rtRound(worldPos.y), rtRound(worldPos.z)],
+          radius: rtRound(radius),
+          material: mat
+        });
+        return;
+      }
+      var tris = rtMeshToTriangles(o);
+      if(tris.length){
+        out.push({ type: 'mesh', material: mat, triangles: tris });
+      }
+    });
+    return out;
+  }
+
+  function rtExportGround(){
+    var col = new THREE.Color(sceneState.groundColor || '#ffffff');
+    // The classic Ray Tracing in One Weekend trick: a giant sphere reads
+    // as a flat ground plane near the origin. Ground texture (checker)
+    // isn't carried over -- solid color only.
+    return {
+      type: 'sphere',
+      center: [0, -1000, 0],
+      radius: 1000,
+      material: { type: 'lambertian', albedo: [rtRound(col.r), rtRound(col.g), rtRound(col.b)] }
+    };
+  }
+
+  function rtExportLights(){
+    var out = [];
+    lights.forEach(function(l){
+      var lo = l.userData.lightObj;
+      var col = new THREE.Color(lo.color.getHex());
+      if(l.userData.lightType === 'point'){
+        var e = col.clone().multiplyScalar(lo.intensity * RT_POINT_LIGHT_EXPORT_SCALE);
+        out.push({
+          type: 'sphere',
+          center: [rtRound(l.position.x), rtRound(l.position.y), rtRound(l.position.z)],
+          radius: 0.15,
+          material: { type: 'diffuse_light', emit: [rtRound(e.r), rtRound(e.g), rtRound(e.b)] }
+        });
+      } else if(l.userData.lightType === 'sun'){
+        // Direction comes from the gizmo's position (pointing at the
+        // world origin, same as the live sun light itself); placed far
+        // away as a large emissive "sun disc" so it reads as roughly
+        // directional/parallel light onto the scene.
+        var dir = l.position.clone();
+        if(dir.lengthSq() < 1e-6) dir.set(0, 1, 0); else dir.normalize();
+        var pos = dir.multiplyScalar(RT_SUN_DISTANCE);
+        var e = col.clone().multiplyScalar(lo.intensity * RT_SUN_EXPORT_SCALE);
+        out.push({
+          type: 'sphere',
+          center: [rtRound(pos.x), rtRound(pos.y), rtRound(pos.z)],
+          radius: RT_SUN_RADIUS,
+          material: { type: 'diffuse_light', emit: [rtRound(e.r), rtRound(e.g), rtRound(e.b)] }
+        });
+      }
+    });
+    return out;
+  }
+
+  function rtExportCamera(){
+    var target = orbit.target;
+    return {
+      lookfrom: [rtRound(camera.position.x), rtRound(camera.position.y), rtRound(camera.position.z)],
+      lookat: [rtRound(target.x), rtRound(target.y), rtRound(target.z)],
+      vup: [0, 1, 0],
+      vfov: rtRound(camera.fov),
+      defocusAngle: 0,
+      focusDist: rtRound(Math.max(camera.position.distanceTo(target), 0.1))
+    };
+  }
+
+  function serializeSceneForRayTracer(){
+    var objs = rtExportObjects();
+    objs.push(rtExportGround());
+    objs = objs.concat(rtExportLights());
+    return {
+      version: 1,
+      render: { imageWidth: 800, aspectRatio: rtRound(camera.aspect || (16 / 9)), samplesPerPixel: 60, maxDepth: 30 },
+      camera: rtExportCamera(),
+      objects: objs
+    };
+  }
+
+  function exportForRayTracer(){
+    if(!objects.length){
+      showToast('Nothing to export yet — add some shapes first.');
+      return;
+    }
+    var data = serializeSceneForRayTracer();
+    var meshCount = 0, triCount = 0;
+    data.objects.forEach(function(o){
+      if(o.type === 'mesh'){ meshCount++; triCount += o.triangles.length; }
+    });
+
+    var json = JSON.stringify(data, null, 2);
+    var blob = new Blob([json], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'scene.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+
+    showToast('Exported scene.json — ' + objects.length + ' object' + (objects.length === 1 ? '' : 's') +
+      (meshCount ? ' (' + triCount + ' triangles across ' + meshCount + ' mesh' + (meshCount === 1 ? '' : 'es') + ')' : '') +
+      ', ' + lights.length + ' light' + (lights.length === 1 ? '' : 's') + '.');
+  }
+
+  document.getElementById('exportRtBtn').addEventListener('click', exportForRayTracer);
 
   // ---------------------------------------------------------------
   // Keyboard shortcuts

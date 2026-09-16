@@ -14,6 +14,13 @@ public:
     ) const {
         return false;
     }
+
+    // Light a material emits on its own, independent of scattering any
+    // incoming ray. Every material is non-emissive (black) by default;
+    // diffuse_light is the one exception.
+    virtual color emitted() const {
+        return color(0, 0, 0);
+    }
 };
 
 class lambertian : public material {
@@ -92,6 +99,23 @@ private:
         r0 = r0 * r0;
         return r0 + (1 - r0) * std::pow((1 - cosine), 5);
     }
+};
+
+// A pure light source: emits its own color and doesn't scatter incoming
+// rays at all (scatter() falls through to the base class's `return
+// false`), matching the Ray Tracing in One Weekend / The Next Week
+// convention for emissive materials. Used for the Phase 3 bridge to
+// represent Lightbox Studio's Sun/Point lights and glowing objects as
+// light-emitting geometry, since this tracer has no separate concept of
+// a discrete light source.
+class diffuse_light : public material {
+public:
+    diffuse_light(const color& emit) : emit_color(emit) {}
+
+    color emitted() const override { return emit_color; }
+
+private:
+    color emit_color;
 };
 
 #endif
