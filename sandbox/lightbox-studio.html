@@ -74,7 +74,16 @@
     align-items:center;
     gap:10px;
     flex-wrap:wrap;
-    z-index:20;
+    /* Higher than #inspector/#outliner/#hud (all z-index:20) on purpose:
+       #toolbar's own position:fixed + z-index makes it a stacking context,
+       so a dropdown menu inside it (.dropdown-menu, z-index:30) is only
+       ever compared against #inspector/#outliner as a WHOLE -- and since
+       those panels come later in the DOM, equal z-index would let them
+       paint over the entire toolbar (dropdowns included) no matter how
+       high the dropdown's own z-index is set. Bumping the toolbar itself
+       above them fixes that at the source, for every dropdown it holds,
+       instead of just moving buttons around to dodge the overlap. */
+    z-index:25;
     pointer-events:none;
   }
   .toolgroup{
@@ -362,14 +371,14 @@
 
   #fileInput{ display:none; }
 
-  /* #templatesGroup carries the .toolgroup class, whose overflow-x:auto
-     (meant to let a button-crowded group scroll horizontally) forces
-     overflow-y to compute as auto too -- and since that same div is also
-     the position:relative containing block for the dropdown below, its
-     own overflow clips that absolutely-positioned child down to a sliver
+  /* #templatesGroup and #addGroup both carry the .toolgroup class, whose
+     overflow-x:auto (meant to let a button-crowded group scroll
+     horizontally) forces overflow-y to compute as auto too -- and since
+     each is also the position:relative containing block for a dropdown
+     inside it, that same overflow clips the dropdown down to a sliver
      instead of letting it show below the button. Override back to
-     visible here (ID beats the .toolgroup class rule). */
-  #templatesGroup{ overflow:visible; }
+     visible here (ID beats the .toolgroup class rule) for both. */
+  #templatesGroup, #addGroup{ overflow:visible; }
 
   .dropdown-menu{
     position:absolute; top:calc(100% + 6px); left:0;
@@ -378,6 +387,18 @@
     display:none; flex-direction:column; gap:2px;
   }
   .dropdown-menu.open{ display:flex; }
+
+  /* Collapsed add-shape group: hide the six labeled shape buttons and
+     show a single "Shapes" dropdown trigger instead. Expanded (the
+     default) is the mirror image. Toggled by JS whenever the full
+     toolbar would otherwise wrap onto a second row. */
+  /* #addGroup-scoped (not just .shapesDropdownBtn) so this beats the
+     more specific `button.tbtn{ display:flex; }` element+class rule
+     above -- a bare class selector alone loses that specificity fight
+     regardless of source order. */
+  #addGroup .shapesDropdownBtn{ display:none; }
+  #addGroup.collapsed .shapeBtn{ display:none; }
+  #addGroup.collapsed .shapesDropdownBtn{ display:flex; }
   .dropdown-menu button{
     display:block; width:100%; text-align:left; background:none; border:none; color:var(--text);
     font:inherit; font-size:12.5px; font-weight:600; padding:8px 10px; border-radius:7px; cursor:pointer;
@@ -405,31 +426,44 @@
 <div id="toolbar">
   <div class="brand"><span class="dot"></span>Lightbox Studio</div>
 
-  <div class="toolgroup" id="addGroup">
-    <button class="tbtn" id="addBox" title="Add a box">
+  <div class="toolgroup" id="templatesGroup" style="position:relative">
+    <button class="tbtn" id="templatesBtn" title="Load a starter scene">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1.2"/><rect x="14" y="3" width="7" height="7" rx="1.2"/><rect x="3" y="14" width="7" height="7" rx="1.2"/><rect x="14" y="14" width="7" height="7" rx="1.2"/></svg>
+      Templates
+    </button>
+    <div id="templatesMenu" class="dropdown-menu"></div>
+  </div>
+
+  <div class="toolgroup" id="addGroup" style="position:relative">
+    <button class="tbtn shapeBtn" id="addBox" title="Add a box">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3 3 7.5 12 12l9-4.5L12 3Z"/><path d="M3 7.5v9L12 21l9-4.5v-9"/><path d="M12 12v9"/></svg>
       Box
     </button>
-    <button class="tbtn" id="addSphere" title="Add a sphere">
+    <button class="tbtn shapeBtn" id="addSphere" title="Add a sphere">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M3 12c3 2.5 15 2.5 18 0"/><path d="M12 3c2.5 3 2.5 15 0 18"/></svg>
       Sphere
     </button>
-    <button class="tbtn" id="addCylinder" title="Add a cylinder">
+    <button class="tbtn shapeBtn" id="addCylinder" title="Add a cylinder">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><ellipse cx="12" cy="5.5" rx="7.5" ry="3"/><path d="M4.5 5.5v13c0 1.66 3.36 3 7.5 3s7.5-1.34 7.5-3v-13"/></svg>
       Cylinder
     </button>
-    <button class="tbtn" id="addCone" title="Add a cone">
+    <button class="tbtn shapeBtn" id="addCone" title="Add a cone">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><ellipse cx="12" cy="19" rx="7.5" ry="2.5"/><path d="M12 3 4.5 19"/><path d="M12 3l7.5 16"/></svg>
       Cone
     </button>
-    <button class="tbtn" id="addTorus" title="Add a torus">
+    <button class="tbtn shapeBtn" id="addTorus" title="Add a torus">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><ellipse cx="12" cy="12" rx="9" ry="5"/><ellipse cx="12" cy="12" rx="3.3" ry="1.8"/></svg>
       Torus
     </button>
-    <button class="tbtn" id="addCapsule" title="Add a capsule">
+    <button class="tbtn shapeBtn" id="addCapsule" title="Add a capsule">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="7" y="2" width="10" height="20" rx="5"/></svg>
       Capsule
     </button>
+    <button class="tbtn shapesDropdownBtn" id="shapesDropdownBtn" title="Add a shape">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3 3 7.5 12 12l9-4.5L12 3Z"/><path d="M3 7.5v9L12 21l9-4.5v-9"/><path d="M12 12v9"/></svg>
+      Shapes
+    </button>
+    <div id="shapesDropdownMenu" class="dropdown-menu"></div>
     <button class="tbtn" id="importBtn" title="Import a .glb / .gltf model">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 19h16"/></svg>
       Import
@@ -492,14 +526,6 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 4v12"/><path d="M7 11l5 5 5-5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
     </button>
     <input type="file" id="sceneFileInput" accept=".json" style="display:none">
-  </div>
-
-  <div class="toolgroup" id="templatesGroup" style="position:relative">
-    <button class="tbtn" id="templatesBtn" title="Load a starter scene">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1.2"/><rect x="14" y="3" width="7" height="7" rx="1.2"/><rect x="3" y="14" width="7" height="7" rx="1.2"/><rect x="14" y="14" width="7" height="7" rx="1.2"/></svg>
-      Templates
-    </button>
-    <div id="templatesMenu" class="dropdown-menu"></div>
   </div>
 
   <div class="toolgroup">
@@ -586,9 +612,42 @@
     if(!toolbarEl) return;
     document.documentElement.style.setProperty('--toolbar-h', toolbarEl.offsetHeight + 'px');
   }
-  window.addEventListener('resize', syncToolbarHeight);
-  window.addEventListener('load', syncToolbarHeight);
-  setTimeout(syncToolbarHeight, 0);
+
+  // Rather than just reacting to a wrap after it happens, collapse the
+  // add-shape buttons (the single biggest, least-essential chunk of
+  // toolbar width -- six labeled buttons for actions also reachable one
+  // click deeper) into a "Shapes" dropdown whenever the full toolbar
+  // would otherwise spill onto a second row. Toolgroups on the same row
+  // share one boundingClientRect().top; a later one sitting lower means
+  // flex-wrap kicked in.
+  var addGroupEl = document.getElementById('addGroup');
+  function toolbarIsWrapped(){
+    // Compare each child's vertical CENTER, not its top: #toolbar uses
+    // align-items:center, so items of different heights on the very same
+    // row (e.g. .brand at 36px tall vs. a 44px .toolgroup, or the
+    // zero-height .spacer) still share one center line even though their
+    // tops differ -- comparing tops directly gave false "wrapped"
+    // positives for a perfectly single-row toolbar.
+    var kids = toolbarEl.children;
+    var refCenter = null;
+    for(var i = 0; i < kids.length; i++){
+      var r = kids[i].getBoundingClientRect();
+      var center = r.top + r.height / 2;
+      if(refCenter === null){ refCenter = center; continue; }
+      if(Math.abs(center - refCenter) > 2) return true;
+    }
+    return false;
+  }
+  function updateToolbarResponsive(){
+    // Always try the fully-expanded layout first -- a window that's been
+    // widened back out should un-collapse, not stay collapsed forever.
+    addGroupEl.classList.remove('collapsed');
+    if(toolbarIsWrapped()) addGroupEl.classList.add('collapsed');
+    syncToolbarHeight();
+  }
+  window.addEventListener('resize', updateToolbarResponsive);
+  window.addEventListener('load', updateToolbarResponsive);
+  setTimeout(updateToolbarResponsive, 0);
 
   // ---------------------------------------------------------------
   // Theme
@@ -2456,6 +2515,7 @@
   function closeTemplatesMenu(){ templatesMenu.classList.remove('open'); }
   templatesBtn.addEventListener('click', function(e){
     e.stopPropagation();
+    closeShapesMenu();
     templatesMenu.classList.toggle('open');
   });
   templatesMenu.addEventListener('click', function(e){
@@ -2466,9 +2526,47 @@
     closeTemplatesMenu();
     if(tpl) applySceneData(tpl.data, 'Loaded "' + tpl.label + '"');
   });
+
+  // The six primitive-shape buttons collapse into this single "Shapes"
+  // dropdown (toggled by updateToolbarResponsive() above) whenever the
+  // full toolbar would otherwise wrap onto a second row. Each menu item
+  // just click()s the real, still-present-but-hidden shape button, so
+  // there's exactly one place (that button's own listener) that knows
+  // how to actually add each shape -- .click() fires a hidden button's
+  // handler the same as a visible one, it just skips real hit-testing.
+  var SHAPE_ADD_ITEMS = [
+    { id: 'addBox', label: 'Box' },
+    { id: 'addSphere', label: 'Sphere' },
+    { id: 'addCylinder', label: 'Cylinder' },
+    { id: 'addCone', label: 'Cone' },
+    { id: 'addTorus', label: 'Torus' },
+    { id: 'addCapsule', label: 'Capsule' }
+  ];
+  var shapesDropdownBtn = document.getElementById('shapesDropdownBtn');
+  var shapesDropdownMenu = document.getElementById('shapesDropdownMenu');
+  shapesDropdownMenu.innerHTML = SHAPE_ADD_ITEMS.map(function(item){
+    return '<button data-shape-target="' + item.id + '">' + escapeHtml(item.label) + '</button>';
+  }).join('');
+  function closeShapesMenu(){ shapesDropdownMenu.classList.remove('open'); }
+  shapesDropdownBtn.addEventListener('click', function(e){
+    e.stopPropagation();
+    closeTemplatesMenu();
+    shapesDropdownMenu.classList.toggle('open');
+  });
+  shapesDropdownMenu.addEventListener('click', function(e){
+    var btn = e.target.closest('[data-shape-target]');
+    if(!btn) return;
+    closeShapesMenu();
+    var target = document.getElementById(btn.getAttribute('data-shape-target'));
+    if(target) target.click();
+  });
+
   document.addEventListener('click', function(e){
     if(templatesMenu.classList.contains('open') && !templatesMenu.contains(e.target) && e.target !== templatesBtn){
       closeTemplatesMenu();
+    }
+    if(shapesDropdownMenu.classList.contains('open') && !shapesDropdownMenu.contains(e.target) && e.target !== shapesDropdownBtn && !shapesDropdownBtn.contains(e.target)){
+      closeShapesMenu();
     }
   });
 
