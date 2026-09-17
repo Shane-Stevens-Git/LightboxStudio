@@ -362,6 +362,15 @@
 
   #fileInput{ display:none; }
 
+  /* #templatesGroup carries the .toolgroup class, whose overflow-x:auto
+     (meant to let a button-crowded group scroll horizontally) forces
+     overflow-y to compute as auto too -- and since that same div is also
+     the position:relative containing block for the dropdown below, its
+     own overflow clips that absolutely-positioned child down to a sliver
+     instead of letting it show below the button. Override back to
+     visible here (ID beats the .toolgroup class rule). */
+  #templatesGroup{ overflow:visible; }
+
   .dropdown-menu{
     position:absolute; top:calc(100% + 6px); left:0;
     background:var(--panel); border:1px solid var(--panel-border); border-radius:10px;
