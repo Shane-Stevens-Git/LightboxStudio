@@ -400,10 +400,11 @@
   #addGroup.collapsed .shapeBtn{ display:none; }
   #addGroup.collapsed .shapesDropdownBtn{ display:flex; }
   .dropdown-menu button{
-    display:block; width:100%; text-align:left; background:none; border:none; color:var(--text);
+    display:flex; align-items:center; gap:8px; width:100%; text-align:left; background:none; border:none; color:var(--text);
     font:inherit; font-size:12.5px; font-weight:600; padding:8px 10px; border-radius:7px; cursor:pointer;
   }
   .dropdown-menu button:hover{ background:var(--bg); }
+  .dropdown-menu button svg{ width:16px; height:16px; flex:none; }
 
   @media (max-width:680px){
     #inspector{
@@ -2545,7 +2546,11 @@
   var shapesDropdownBtn = document.getElementById('shapesDropdownBtn');
   var shapesDropdownMenu = document.getElementById('shapesDropdownMenu');
   shapesDropdownMenu.innerHTML = SHAPE_ADD_ITEMS.map(function(item){
-    return '<button data-shape-target="' + item.id + '">' + escapeHtml(item.label) + '</button>';
+    // Reuse the real shape button's own icon markup (rather than duplicating
+    // each SVG here) so the dropdown row always matches that button's icon.
+    var srcBtn = document.getElementById(item.id);
+    var iconSvg = srcBtn ? (srcBtn.querySelector('svg') || {}).outerHTML || '' : '';
+    return '<button data-shape-target="' + item.id + '">' + iconSvg + '<span>' + escapeHtml(item.label) + '</span></button>';
   }).join('');
   function closeShapesMenu(){ shapesDropdownMenu.classList.remove('open'); }
   shapesDropdownBtn.addEventListener('click', function(e){
