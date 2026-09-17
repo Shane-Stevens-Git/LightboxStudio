@@ -306,6 +306,7 @@
   }
   .outliner-row:hover{ background:var(--bg); }
   .outliner-row.selected{ background:color-mix(in srgb, var(--accent) 16%, var(--bg)); }
+  .outliner-row.multiselected{ background:color-mix(in srgb, var(--accent) 9%, var(--bg)); box-shadow:0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent) inset; }
   .outliner-row .dot2{ width:9px; height:9px; border-radius:50%; flex:none; border:1px solid rgba(0,0,0,.15); }
   .outliner-row .name{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
   .outliner-row .rm{
@@ -360,6 +361,19 @@
   #toast.show{ opacity:1; transform:translate(-50%,0); }
 
   #fileInput{ display:none; }
+
+  .dropdown-menu{
+    position:absolute; top:calc(100% + 6px); left:0;
+    background:var(--panel); border:1px solid var(--panel-border); border-radius:10px;
+    box-shadow:0 6px 20px rgba(0,0,0,.16); padding:6px; min-width:172px; z-index:30;
+    display:none; flex-direction:column; gap:2px;
+  }
+  .dropdown-menu.open{ display:flex; }
+  .dropdown-menu button{
+    display:block; width:100%; text-align:left; background:none; border:none; color:var(--text);
+    font:inherit; font-size:12.5px; font-weight:600; padding:8px 10px; border-radius:7px; cursor:pointer;
+  }
+  .dropdown-menu button:hover{ background:var(--bg); }
 
   @media (max-width:680px){
     #inspector{
@@ -438,6 +452,9 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 15v5h5M20 9V4h-5M20 4 13 11M4 20l7-7"/></svg>
       Scale
     </button>
+    <button class="tbtn iconOnly" id="snapToggle" title="Snap to grid/angle (hold Shift while dragging to invert)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+    </button>
   </div>
 
   <div class="toolgroup">
@@ -459,6 +476,21 @@
     <button class="tbtn iconOnly" id="exportRtBtn" title="Export for Ray Tracer (scene.json)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 19h16"/></svg>
     </button>
+    <button class="tbtn iconOnly" id="exportJsonBtn" title="Export scene as a .json file">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 16V4"/><path d="M7 9l5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+    </button>
+    <button class="tbtn iconOnly" id="importJsonBtn" title="Import scene from a .json file">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 4v12"/><path d="M7 11l5 5 5-5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+    </button>
+    <input type="file" id="sceneFileInput" accept=".json" style="display:none">
+  </div>
+
+  <div class="toolgroup" id="templatesGroup" style="position:relative">
+    <button class="tbtn" id="templatesBtn" title="Load a starter scene">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1.2"/><rect x="14" y="3" width="7" height="7" rx="1.2"/><rect x="3" y="14" width="7" height="7" rx="1.2"/><rect x="14" y="14" width="7" height="7" rx="1.2"/></svg>
+      Templates
+    </button>
+    <div id="templatesMenu" class="dropdown-menu"></div>
   </div>
 
   <div class="toolgroup">
@@ -515,6 +547,13 @@
 <script src="https://cdn.jsdelivr.net/npm/three@0.137.0/examples/js/controls/OrbitControls.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.137.0/examples/js/controls/TransformControls.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.137.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.137.0/examples/js/shaders/CopyShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.137.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.137.0/examples/js/postprocessing/EffectComposer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.137.0/examples/js/postprocessing/RenderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.137.0/examples/js/postprocessing/ShaderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.137.0/examples/js/postprocessing/MaskPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.137.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
 
 <script>
 (function(){
@@ -569,11 +608,25 @@
   var camera = new THREE.PerspectiveCamera(45, 1, 0.1, 200);
   camera.position.set(DEFAULT_CAM.pos[0], DEFAULT_CAM.pos[1], DEFAULT_CAM.pos[2]);
 
+  // ---------------------------------------------------------------
+  // Post-processing (bloom glow). The composer always exists; whether a
+  // frame actually goes through it is gated by bloomPass.enabled so the
+  // plain renderer.render() path (cheaper, and identical output) is used
+  // whenever bloom is off.
+  // ---------------------------------------------------------------
+  var composer = new THREE.EffectComposer(renderer);
+  var renderPass = new THREE.RenderPass(scene, camera);
+  composer.addPass(renderPass);
+  var bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.8, 0.4, 0.85);
+  bloomPass.enabled = false;
+  composer.addPass(bloomPass);
+
   function resize(){
     var w = window.innerWidth, h = window.innerHeight;
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
     renderer.setSize(w, h);
+    composer.setSize(w, h);
   }
   window.addEventListener('resize', resize);
   resize();
@@ -700,6 +753,11 @@
     var inten = intensity != null ? intensity : def.defaultIntensity;
     lightObj.color.setHex(col);
     lightObj.intensity = inten;
+    // sceneState is declared further down (in the Ground/background section)
+    // but this function's very first call happens during initial setup,
+    // before that line runs -- typeof-guard so that earliest call (which
+    // just wants the plain default) doesn't throw on a not-yet-assigned var.
+    if(lightObj.shadow) lightObj.shadow.radius = (typeof sceneState !== 'undefined' && sceneState.shadowSoftness != null) ? sceneState.shadowSoftness : 1;
     gizmo.userData.core.material.color.setHex(col);
     gizmo.userData.glow.material.color.setHex(col);
 
@@ -723,6 +781,8 @@
   function removeLight(gizmo, skipHistory){
     if(!skipHistory) pushHistory();
     if(selected === gizmo) deselect();
+    var mi = multiSelected.indexOf(gizmo);
+    if(mi >= 0) multiSelected.splice(mi, 1);
     scene.remove(gizmo);
     scene.remove(gizmo.userData.lightObj);
     if(gizmo.userData.lightType === 'sun') scene.remove(gizmo.userData.lightObj.target);
@@ -892,8 +952,32 @@
     groundColor: '#ffffff', groundTexture: 'checker',
     bgMode: 'preset', bgPreset: 'studio',
     bgSolidColor: '#1b2130',
-    bgImageDataUrl: null, bgImageName: null
+    bgImageDataUrl: null, bgImageName: null,
+    shadowSoftness: 1,
+    bloomEnabled: false, bloomStrength: 0.8, bloomRadius: 0.4, bloomThreshold: 0.85
   };
+
+  // Shadow softness is a single global knob (rather than per-light) since
+  // most sandbox scenes only have one or two lights and a per-light control
+  // would mostly just be one more thing to keep in sync. Applies to every
+  // shadow-casting light's THREE.Light.shadow.radius, which blurs the PCF
+  // soft-shadow sampling -- higher reads as a bigger, softer light source.
+  function applyShadowSoftness(v){
+    if(typeof v !== 'number' || isNaN(v)) v = 1;
+    sceneState.shadowSoftness = v;
+    lights.forEach(function(l){
+      var lo = l.userData.lightObj;
+      if(lo && lo.shadow) lo.shadow.radius = v;
+    });
+  }
+
+  function applyBloomSettings(){
+    bloomPass.enabled = !!sceneState.bloomEnabled;
+    bloomPass.strength = sceneState.bloomStrength;
+    bloomPass.radius = sceneState.bloomRadius;
+    bloomPass.threshold = sceneState.bloomThreshold;
+  }
+  applyBloomSettings();
   // Which Backdrop tab the Scene panel currently shows -- kept separate
   // from sceneState.bgMode so clicking the "Image" tab before choosing a
   // file doesn't itself change the live background.
@@ -988,7 +1072,16 @@
   // Keeps the inspector's numeric position/rotation/scale fields in sync
   // while the user drags the move/rotate/scale gizmo -- skips any field
   // currently focused so it doesn't fight with someone mid-edit there.
+  var multiDragDelta = new THREE.Vector3();
   xform.addEventListener('objectChange', function(){
+    if(multiSelected.length > 1 && xform.object === multiPivot){
+      multiDragDelta.subVectors(multiPivot.position, multiPivotLastPos);
+      if(multiDragDelta.lengthSq() > 0){
+        multiSelected.forEach(function(o){ o.position.add(multiDragDelta); });
+        multiPivotLastPos.copy(multiPivot.position);
+      }
+      return;
+    }
     if(!selected || selected.userData.kind !== 'shape') return;
     var active = document.activeElement;
     var fields = {
@@ -1003,6 +1096,43 @@
       if(el && el !== active) el.value = rtRound(fields[id]);
     });
   });
+
+  // ---------------------------------------------------------------
+  // Grid / angle snapping
+  // ---------------------------------------------------------------
+  var SNAP_TRANSLATE = 0.5;
+  var SNAP_ROTATE_DEG = 15;
+  var SNAP_SCALE = 0.1;
+  var snapEnabled = false;
+  var snapBtn = document.getElementById('snapToggle');
+  function applySnapState(on){
+    if(on){
+      xform.setTranslationSnap(SNAP_TRANSLATE);
+      xform.setRotationSnap(THREE.MathUtils.degToRad(SNAP_ROTATE_DEG));
+      xform.setScaleSnap(SNAP_SCALE);
+    } else {
+      xform.setTranslationSnap(null);
+      xform.setRotationSnap(null);
+      xform.setScaleSnap(null);
+    }
+  }
+  function setSnapEnabled(v){
+    snapEnabled = v;
+    applySnapState(snapEnabled);
+    snapBtn.classList.toggle('active', snapEnabled);
+  }
+  snapBtn.addEventListener('click', function(){ setSnapEnabled(!snapEnabled); });
+  // Holding Shift while actively dragging the gizmo temporarily inverts
+  // whatever the toggle is currently set to -- the common "hold to snap /
+  // hold to free-move" convention from other 3D tools -- without touching
+  // the persistent snapEnabled state the button reflects.
+  window.addEventListener('keydown', function(e){
+    if(e.key === 'Shift' && xform.dragging) applySnapState(!snapEnabled);
+  });
+  window.addEventListener('keyup', function(e){
+    if(e.key === 'Shift') applySnapState(snapEnabled);
+  });
+  applySnapState(false);
 
   // ---------------------------------------------------------------
   // Camera presets
@@ -1273,6 +1403,31 @@
   function applyClearcoat(root, v){
     eachMaterial(root, function(m){ if('clearcoat' in m) m.clearcoat = v; });
   }
+  // Texture upload (basic primitives only -- an imported glTF already
+  // brings its own materials/textures, so this is never offered for one).
+  // dataUrl is the source of truth, same pattern as the skybox image: the
+  // live THREE.Texture is always rebuilt from it rather than carried
+  // across snapshots/saves, so undo/redo and Save/Load never depend on
+  // holding onto a specific (possibly disposed) Texture instance.
+  var materialTextureLoader = new THREE.TextureLoader();
+  function applyTexture(root, dataUrl, name, onDone){
+    materialTextureLoader.load(dataUrl, function(tex){
+      tex.encoding = THREE.sRGBEncoding;
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      eachMaterial(root, function(m){ m.map = tex; m.needsUpdate = true; });
+      root.userData.textureDataUrl = dataUrl;
+      root.userData.textureName = name || null;
+      if(onDone) onDone();
+    }, undefined, function(err){
+      console.error(err);
+      showToast('Could not load that image as a texture.');
+    });
+  }
+  function clearTexture(root){
+    eachMaterial(root, function(m){ m.map = null; m.needsUpdate = true; });
+    root.userData.textureDataUrl = null;
+    root.userData.textureName = null;
+  }
   function firstMaterial(root){
     var found = null;
     eachMaterial(root, function(m){ if(!found) found = m; });
@@ -1490,6 +1645,87 @@
   var pointerDown = null;
   var wasDragging = false;
 
+  // Multi-select: shift/ctrl (or cmd) -click a second shape or light to add
+  // it to multiSelected. Once it holds 2+ items, `selected` goes back to
+  // null (no single-object inspector) and the gizmo attaches to a small
+  // invisible pivot parked at the group's centroid instead -- dragging it
+  // moves every selected object together by the same delta. Falls back to
+  // ordinary single-select automatically the moment the group shrinks to
+  // 0 or 1 members.
+  var multiSelected = [];
+  var multiPivot = new THREE.Object3D();
+  scene.add(multiPivot);
+  var multiPivotLastPos = new THREE.Vector3();
+  var multiCentroidTmp = new THREE.Vector3();
+
+  function multiCentroid(target){
+    target.set(0, 0, 0);
+    if(!multiSelected.length) return target;
+    multiSelected.forEach(function(o){ target.add(o.getWorldPosition(multiCentroidTmp.clone())); });
+    target.multiplyScalar(1 / multiSelected.length);
+    return target;
+  }
+  function updateMultiPivot(){
+    multiCentroid(multiPivot.position);
+    multiPivotLastPos.copy(multiPivot.position);
+    xform.setMode('translate');
+    Object.keys(modeButtons).forEach(function(k){ modeButtons[k].classList.toggle('active', k === 'translate'); });
+    xform.attach(multiPivot);
+  }
+  function clearMultiSelect(){
+    if(!multiSelected.length) return;
+    multiSelected = [];
+  }
+  function toggleMultiSelect(root){
+    if(multiSelected.length === 0 && selected){
+      multiSelected = [selected];
+      selected = null;
+    }
+    var idx = multiSelected.indexOf(root);
+    if(idx >= 0) multiSelected.splice(idx, 1);
+    else multiSelected.push(root);
+
+    if(multiSelected.length <= 1){
+      var only = multiSelected[0] || null;
+      multiSelected = [];
+      if(only) select(only); else deselect();
+      return;
+    }
+    xform.detach();
+    updateMultiPivot();
+    renderInspector();
+    updateOutlinerSelection();
+  }
+  function deleteMultiSelected(){
+    var group = multiSelected.slice();
+    multiSelected = [];
+    xform.detach();
+    pushHistory();
+    group.forEach(function(o){
+      if(o.userData.kind === 'light') removeLight(o, true); else removeObject(o, true);
+    });
+    deselect();
+  }
+  function duplicateMultiSelected(){
+    var group = multiSelected.slice();
+    if(!group.length) return;
+    pushHistory();
+    var clones = group.map(function(o){ return duplicateOne(o, true); }).filter(Boolean);
+    xform.detach();
+    if(clones.length > 1){
+      multiSelected = clones;
+      selected = null;
+      updateMultiPivot();
+      renderInspector();
+      updateOutlinerSelection();
+      updateHud();
+    } else if(clones.length === 1){
+      multiSelected = [];
+      select(clones[0]);
+      updateHud();
+    }
+  }
+
   function findSelectableRoot(obj){
     var o = obj;
     while(o){
@@ -1504,7 +1740,7 @@
   }
 
   canvas.addEventListener('pointerdown', function(e){
-    pointerDown = { x: e.clientX, y: e.clientY };
+    pointerDown = { x: e.clientX, y: e.clientY, multi: e.shiftKey || e.ctrlKey || e.metaKey };
   });
 
   canvas.addEventListener('pointerup', function(e){
@@ -1512,6 +1748,7 @@
     if(wasDragging){ wasDragging = false; return; }
     if(!pointerDown) return;
     var dx = e.clientX - pointerDown.x, dy = e.clientY - pointerDown.y;
+    var isMulti = pointerDown.multi;
     pointerDown = null;
     if(Math.sqrt(dx*dx + dy*dy) > 5) return; // was a drag/orbit, not a click
 
@@ -1520,15 +1757,17 @@
     pointerNdc.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
     raycaster.setFromCamera(pointerNdc, camera);
     var hits = raycaster.intersectObjects(raycastTargets(), true);
-    if(hits.length){
-      var root = findSelectableRoot(hits[0].object);
-      if(root) select(root); else deselect();
-    } else {
-      deselect();
+    var root = hits.length ? findSelectableRoot(hits[0].object) : null;
+
+    if(isMulti){
+      if(root) toggleMultiSelect(root);
+      return;
     }
+    if(root) select(root); else deselect();
   });
 
   function select(obj){
+    multiSelected = [];
     selected = obj;
     xform.attach(obj);
     renderInspector();
@@ -1543,6 +1782,7 @@
     updateOutlinerSelection();
   }
   function deselect(){
+    multiSelected = [];
     selected = null;
     xform.detach();
     renderInspector();
@@ -1558,6 +1798,7 @@
     scale: document.getElementById('modeScale')
   };
   function setMode(mode){
+    if(mode !== 'translate' && multiSelected.length > 1) return;
     xform.setMode(mode);
     Object.keys(modeButtons).forEach(function(k){
       modeButtons[k].classList.toggle('active', k === mode);
@@ -1577,6 +1818,8 @@
   function removeObject(obj, skipHistory){
     if(!skipHistory) pushHistory();
     if(selected === obj) deselect();
+    var mi = multiSelected.indexOf(obj);
+    if(mi >= 0) multiSelected.splice(mi, 1);
     disposeOwnProbe(obj);
     removeGlowLight(obj);
     removeAllBlobShadows(obj);
@@ -1621,32 +1864,33 @@
     });
   }
 
-  function duplicateSelected(){
-    if(!selected) return;
-    pushHistory();
+  // The actual duplicate logic for one object, factored out so both the
+  // single-selection path (Ctrl+D / the inspector's duplicate button) and
+  // the multi-select "duplicate all" path can share it. skipHistory is true
+  // when the caller is about to duplicate several objects as one undo step
+  // and has already pushed its own snapshot.
+  function duplicateOne(obj, skipHistory){
+    if(!skipHistory) pushHistory();
 
-    if(selected.userData.kind === 'light'){
-      var type = selected.userData.lightType;
-      var lo = selected.userData.lightObj;
-      var pos = selected.position.clone().add(new THREE.Vector3(DUPLICATE_OFFSET, 0, DUPLICATE_OFFSET));
-      var gizmo = addLight(type, pos, lo.color.getHex(), lo.intensity);
-      select(gizmo);
-      updateHud();
-      return;
+    if(obj.userData.kind === 'light'){
+      var type = obj.userData.lightType;
+      var lo = obj.userData.lightObj;
+      var pos = obj.position.clone().add(new THREE.Vector3(DUPLICATE_OFFSET, 0, DUPLICATE_OFFSET));
+      return addLight(type, pos, lo.color.getHex(), lo.intensity);
     }
 
-    if(selected.userData.imported){
-      var clone = selected.clone(true);
+    if(obj.userData.imported){
+      var clone = obj.clone(true);
       cloneMaterialsIndependently(clone);
-      clone.position.copy(selected.position).add(new THREE.Vector3(DUPLICATE_OFFSET, 0, DUPLICATE_OFFSET));
-      clone.quaternion.copy(selected.quaternion);
-      clone.scale.copy(selected.scale);
+      clone.position.copy(obj.position).add(new THREE.Vector3(DUPLICATE_OFFSET, 0, DUPLICATE_OFFSET));
+      clone.quaternion.copy(obj.quaternion);
+      clone.scale.copy(obj.scale);
       clone.userData.selectable = true;
       clone.userData.kind = 'shape';
       clone.userData.imported = true;
-      clone.userData.label = (selected.userData.label || 'Model') + ' copy';
-      clone.userData.preset = selected.userData.preset;
-      clone.userData.color = selected.userData.color;
+      clone.userData.label = (obj.userData.label || 'Model') + ' copy';
+      clone.userData.preset = obj.userData.preset;
+      clone.userData.color = obj.userData.color;
       clone.userData.ownProbe = null;
       clone.userData.glowLight = null;
       clone.userData.blobShadows = null;
@@ -1655,27 +1899,25 @@
       scene.add(clone);
       objects.push(clone);
       placedCount++;
-      select(clone);
-      updateHud();
-      return;
+      return clone;
     }
 
     // Basic primitive: rebuilt fresh (same as Save/Load does) so the copy
     // gets its own independent material rather than sharing the original's.
-    var built = createPrimitive(selected.userData.shapeType);
-    if(!built){ undoStack.pop(); return; }
+    var built = createPrimitive(obj.userData.shapeType);
+    if(!built) return null;
     var mesh = built.mesh;
-    mesh.position.copy(selected.position).add(new THREE.Vector3(DUPLICATE_OFFSET, 0, DUPLICATE_OFFSET));
-    mesh.quaternion.copy(selected.quaternion);
-    mesh.scale.copy(selected.scale);
+    mesh.position.copy(obj.position).add(new THREE.Vector3(DUPLICATE_OFFSET, 0, DUPLICATE_OFFSET));
+    mesh.quaternion.copy(obj.quaternion);
+    mesh.scale.copy(obj.scale);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     mesh.userData.selectable = true;
     mesh.userData.kind = 'shape';
-    mesh.userData.label = (selected.userData.label || built.label) + ' copy';
-    var srcMat = firstMaterial(selected);
-    applyPreset(mesh, selected.userData.preset || 'matte');
-    applyColor(mesh, selected.userData.color || nextSpawnColor());
+    mesh.userData.label = (obj.userData.label || built.label) + ' copy';
+    var srcMat = firstMaterial(obj);
+    applyPreset(mesh, obj.userData.preset || 'matte');
+    applyColor(mesh, obj.userData.color || nextSpawnColor());
     if(srcMat){
       applyRoughness(mesh, srcMat.roughness);
       applyMetalness(mesh, srcMat.metalness);
@@ -1684,11 +1926,20 @@
       if('emissiveIntensity' in srcMat) applyEmissiveIntensity(mesh, srcMat.emissiveIntensity);
       if('clearcoat' in srcMat) applyClearcoat(mesh, srcMat.clearcoat);
     }
+    if(obj.userData.textureDataUrl) applyTexture(mesh, obj.userData.textureDataUrl, obj.userData.textureName);
     updateReflectionProbe(mesh);
     scene.add(mesh);
     objects.push(mesh);
     placedCount++;
-    select(mesh);
+    return mesh;
+  }
+
+  function duplicateSelected(){
+    if(multiSelected.length > 1){ duplicateMultiSelected(); return; }
+    if(!selected) return;
+    var result = duplicateOne(selected, false);
+    if(!result){ undoStack.pop(); return; }
+    select(result);
     updateHud();
   }
 
@@ -1717,7 +1968,9 @@
           opacity: m ? m.opacity : undefined,
           emissive: m && m.emissive ? '#' + m.emissive.getHexString() : undefined,
           emissiveIntensity: m ? m.emissiveIntensity : undefined,
-          clearcoat: m && ('clearcoat' in m) ? m.clearcoat : undefined
+          clearcoat: m && ('clearcoat' in m) ? m.clearcoat : undefined,
+          textureDataUrl: o.userData.textureDataUrl || null,
+          textureName: o.userData.textureName || null
         };
       }),
       lights: lights.map(function(l){
@@ -1742,6 +1995,11 @@
   }
 
   function restoreSnapshot(snap){
+    // Undo/redo always restores to a plain single (or no) selection --
+    // a stale multi-select referencing objects that may no longer exist
+    // (or exist with a different identity, for redo-recreated ones) isn't
+    // meaningful to carry across a history jump.
+    multiSelected = [];
     objects.slice().forEach(function(o){
       var stillThere = snap.objects.some(function(s){ return s.ref === o; });
       if(!stillThere){
@@ -1770,6 +2028,14 @@
       if(s.emissive) applyEmissiveColor(s.ref, s.emissive);
       if(typeof s.emissiveIntensity === 'number') applyEmissiveIntensity(s.ref, s.emissiveIntensity);
       if(typeof s.clearcoat === 'number') applyClearcoat(s.ref, s.clearcoat);
+      // Only touch the texture when it actually changed -- TextureLoader.load
+      // is async, so re-triggering it every undo/redo step (even back to the
+      // same image) would be wasteful and could flicker.
+      if(s.textureDataUrl){
+        if(s.ref.userData.textureDataUrl !== s.textureDataUrl) applyTexture(s.ref, s.textureDataUrl, s.textureName);
+      } else if(s.ref.userData.textureDataUrl){
+        clearTexture(s.ref);
+      }
       updateReflectionProbe(s.ref);
       objects.push(s.ref);
     });
@@ -1891,7 +2157,9 @@
         opacity: m ? m.opacity : undefined,
         emissive: m && m.emissive ? '#' + m.emissive.getHexString() : undefined,
         emissiveIntensity: m ? m.emissiveIntensity : undefined,
-        clearcoat: m && ('clearcoat' in m) ? m.clearcoat : undefined
+        clearcoat: m && ('clearcoat' in m) ? m.clearcoat : undefined,
+        textureDataUrl: o.userData.textureDataUrl || null,
+        textureName: o.userData.textureName || null
       });
     });
     var lightsOut = lights.map(function(l){
@@ -1916,6 +2184,13 @@
         solidColor: sceneState.bgSolidColor,
         imageDataUrl: sceneState.bgImageDataUrl,
         imageName: sceneState.bgImageName
+      },
+      shadowSoftness: sceneState.shadowSoftness,
+      bloom: {
+        enabled: sceneState.bloomEnabled,
+        strength: sceneState.bloomStrength,
+        radius: sceneState.bloomRadius,
+        threshold: sceneState.bloomThreshold
       }
     };
   }
@@ -1932,15 +2207,12 @@
     }
   }
 
-  function loadScene(){
-    var raw;
-    try{ raw = localStorage.getItem(STORAGE_KEY); }
-    catch(err){ raw = null; }
-    if(!raw){ showToast('No saved scene found yet.'); return; }
-    var data;
-    try{ data = JSON.parse(raw); }
-    catch(err){ showToast('Saved scene data looks corrupted.'); return; }
-
+  // Shared by "Load saved scene" (localStorage), "Import scene from file",
+  // and the starter templates -- all three just hand a scene-shaped data
+  // object to this and it does the actual rebuilding. successLabel is the
+  // lead-in for the toast ("Scene loaded", "Scene imported", the template's
+  // own name, etc).
+  function applySceneData(data, successLabel){
     pushHistory();
 
     objects.slice().forEach(function(o){ removeObject(o, true); });
@@ -1966,6 +2238,7 @@
       if(s.emissive) applyEmissiveColor(mesh, s.emissive);
       if(typeof s.emissiveIntensity === 'number') applyEmissiveIntensity(mesh, s.emissiveIntensity);
       if(typeof s.clearcoat === 'number') applyClearcoat(mesh, s.clearcoat);
+      if(s.textureDataUrl) applyTexture(mesh, s.textureDataUrl, s.textureName);
       updateReflectionProbe(mesh);
       scene.add(mesh);
       objects.push(mesh);
@@ -2000,17 +2273,195 @@
       // Older saves stored just the preset key as a plain string.
       setBackgroundPreset(data.background);
     }
+    applyShadowSoftness(typeof data.shadowSoftness === 'number' ? data.shadowSoftness : 1);
+    if(data.bloom && typeof data.bloom === 'object'){
+      sceneState.bloomEnabled = !!data.bloom.enabled;
+      sceneState.bloomStrength = typeof data.bloom.strength === 'number' ? data.bloom.strength : sceneState.bloomStrength;
+      sceneState.bloomRadius = typeof data.bloom.radius === 'number' ? data.bloom.radius : sceneState.bloomRadius;
+      sceneState.bloomThreshold = typeof data.bloom.threshold === 'number' ? data.bloom.threshold : sceneState.bloomThreshold;
+      applyBloomSettings();
+    }
 
     placedCount = typeof data.placedCount === 'number' ? data.placedCount : objects.length;
     deselect();
     updateHud();
 
     var note = data.skippedImports ? (' (' + data.skippedImports + ' imported model' + (data.skippedImports > 1 ? 's' : '') + ' from that save couldn’t be restored)') : '';
-    showToast('Scene loaded' + note + '.');
+    showToast((successLabel || 'Scene loaded') + note + '.');
+  }
+
+  function loadScene(){
+    var raw;
+    try{ raw = localStorage.getItem(STORAGE_KEY); }
+    catch(err){ raw = null; }
+    if(!raw){ showToast('No saved scene found yet.'); return; }
+    var data;
+    try{ data = JSON.parse(raw); }
+    catch(err){ showToast('Saved scene data looks corrupted.'); return; }
+    applySceneData(data, 'Scene loaded');
+  }
+
+  // Offering a file works two different ways depending on where this page
+  // is running. Opened directly (the usual way -- a plain HTML file synced
+  // to disk), a plain <a download> anchor is a real, working browser
+  // download. Viewed through the hosted Claude Artifact preview, that
+  // iframe never grants a page direct download access -- the anchor click
+  // silently does nothing there -- so the page instead offers the file
+  // through the `downloads` capability when the sandbox provides one
+  // (window.claude.use('downloads')), and only falls back to the anchor
+  // when it doesn't. Same file, whichever path actually works here.
+  var downloadsCapability = null;
+  var downloadsCapabilityChecked = false;
+  function getDownloadsCapability(cb){
+    if(typeof claude === 'undefined' || !claude || typeof claude.use !== 'function'){ cb(null); return; }
+    if(downloadsCapabilityChecked){ cb(downloadsCapability); return; }
+    claude.use('downloads').then(function(d){
+      downloadsCapabilityChecked = true;
+      downloadsCapability = d;
+      cb(d);
+    }).catch(function(){
+      downloadsCapabilityChecked = true;
+      downloadsCapability = null;
+      cb(null);
+    });
+  }
+  function anchorDownload(filename, blob){
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+  }
+  function saveFile(filename, blob, onSaved){
+    getDownloadsCapability(function(d){
+      if(!d){ anchorDownload(filename, blob); if(onSaved) onSaved(); return; }
+      d.save({ filename: filename, data: blob }).then(function(){
+        if(onSaved) onSaved();
+      }).catch(function(err){
+        if(err && err.code === 'declined') return; // the viewer said no -- respect it, no fallback
+        anchorDownload(filename, blob);
+        if(onSaved) onSaved();
+      });
+    });
+  }
+
+  function exportSceneFile(){
+    var data = serializeScene();
+    var json = JSON.stringify(data, null, 2);
+    var blob = new Blob([json], { type: 'application/json' });
+    saveFile('lightbox-scene.json', blob, function(){
+      showToast('Scene exported as lightbox-scene.json.');
+    });
+  }
+
+  function importSceneFile(file){
+    var reader = new FileReader();
+    reader.onload = function(ev){
+      var data;
+      try{ data = JSON.parse(ev.target.result); }
+      catch(err){ showToast('That file doesn’t look like a valid scene export.'); return; }
+      applySceneData(data, 'Scene imported');
+    };
+    reader.onerror = function(){ showToast('Could not read that file.'); };
+    reader.readAsText(file);
   }
 
   document.getElementById('saveBtn').addEventListener('click', saveScene);
   document.getElementById('loadBtn').addEventListener('click', loadScene);
+  document.getElementById('exportJsonBtn').addEventListener('click', exportSceneFile);
+  var sceneFileInput = document.getElementById('sceneFileInput');
+  document.getElementById('importJsonBtn').addEventListener('click', function(){ sceneFileInput.click(); });
+  sceneFileInput.addEventListener('change', function(e){
+    var file = e.target.files && e.target.files[0];
+    if(file) importSceneFile(file);
+    sceneFileInput.value = '';
+  });
+
+  // ---------------------------------------------------------------
+  // Starter scene templates -- just pre-baked data in the same shape
+  // serializeScene()/applySceneData() already use for Save/Load, so
+  // loading one is exactly a File > Import of a bundled scene.
+  // ---------------------------------------------------------------
+  var SCENE_TEMPLATES = {
+    studio: {
+      label: 'Studio Trio',
+      data: {
+        version: 2,
+        objects: [
+          { shapeType:'box', label:'Box', position:[-1.3,0.5,0], quaternion:[0,0,0,1], scale:[1,1,1], preset:'matte', color:'#8fa3c7', roughness:1, metalness:0, opacity:1 },
+          { shapeType:'sphere', label:'Sphere', position:[0,0.6,0.9], quaternion:[0,0,0,1], scale:[1,1,1], preset:'metallic', color:'#d99a5b', roughness:0.35, metalness:1, opacity:1 },
+          { shapeType:'cylinder', label:'Cylinder', position:[1.3,0.55,0], quaternion:[0,0,0,1], scale:[1,1,1], preset:'mirror', color:'#e7ebf2', roughness:0.03, metalness:1, opacity:1 }
+        ],
+        lights: [
+          { type:'point', position:[3.5,4.5,2.5], color:0xfff1d8, intensity:2.4 },
+          { type:'sun', position:[-4,5,-3], color:0xfff4e0, intensity:1.0 }
+        ],
+        ground: { color:'#ffffff', texture:'checker' },
+        background: { mode:'preset', preset:'studio' },
+        shadowSoftness: 1
+      }
+    },
+    stilllife: {
+      label: 'Still Life',
+      data: {
+        version: 2,
+        objects: [
+          { shapeType:'box', label:'Crate', position:[-0.9,0.5,-0.4], quaternion:[0,0,0,1], scale:[1,1,1], preset:'matte', color:'#a4754c', roughness:1, metalness:0, opacity:1 },
+          { shapeType:'sphere', label:'Orb', position:[0.6,0.6,0.5], quaternion:[0,0,0,1], scale:[0.9,0.9,0.9], preset:'clear', color:'#e0a0a8', roughness:0.04, metalness:0, opacity:0.32 },
+          { shapeType:'torus', label:'Ring', position:[0,0.18,-1.1], quaternion:[0,0,0,1], scale:[1.3,1.3,1.3], preset:'metallic', color:'#c9902f', roughness:0.35, metalness:1, opacity:1 }
+        ],
+        lights: [
+          { type:'point', position:[2.5,3.8,3], color:0xffd9a0, intensity:2.8 }
+        ],
+        ground: { color:'#ffffff', texture:'dirt' },
+        background: { mode:'preset', preset:'sunset' },
+        shadowSoftness: 2
+      }
+    },
+    neon: {
+      label: 'Neon Night',
+      data: {
+        version: 2,
+        objects: [
+          { shapeType:'capsule', label:'Neon Pillar', position:[-0.8,0.6,0], quaternion:[0,0,0,1], scale:[1,1.6,1], preset:'matte', color:'#101010', roughness:0.8, metalness:0, opacity:1, emissive:'#4fd1ff', emissiveIntensity:1.4 },
+          { shapeType:'torus', label:'Neon Ring', position:[0.9,0.5,0.3], quaternion:[0,0,0,1], scale:[1,1,1], preset:'matte', color:'#101010', roughness:0.8, metalness:0, opacity:1, emissive:'#ff5fd1', emissiveIntensity:1.4 }
+        ],
+        lights: [
+          { type:'point', position:[2,3,2], color:0x8fd1ff, intensity:1.6 }
+        ],
+        ground: { color:'#0e0e12', texture:'cement' },
+        background: { mode:'preset', preset:'night' },
+        shadowSoftness: 3,
+        bloom: { enabled:true, strength:1.1, radius:0.5, threshold:0.6 }
+      }
+    }
+  };
+  var templatesBtn = document.getElementById('templatesBtn');
+  var templatesMenu = document.getElementById('templatesMenu');
+  templatesMenu.innerHTML = Object.keys(SCENE_TEMPLATES).map(function(key){
+    return '<button data-template="' + key + '">' + escapeHtml(SCENE_TEMPLATES[key].label) + '</button>';
+  }).join('');
+  function closeTemplatesMenu(){ templatesMenu.classList.remove('open'); }
+  templatesBtn.addEventListener('click', function(e){
+    e.stopPropagation();
+    templatesMenu.classList.toggle('open');
+  });
+  templatesMenu.addEventListener('click', function(e){
+    var btn = e.target.closest('[data-template]');
+    if(!btn) return;
+    var key = btn.getAttribute('data-template');
+    var tpl = SCENE_TEMPLATES[key];
+    closeTemplatesMenu();
+    if(tpl) applySceneData(tpl.data, 'Loaded "' + tpl.label + '"');
+  });
+  document.addEventListener('click', function(e){
+    if(templatesMenu.classList.contains('open') && !templatesMenu.contains(e.target) && e.target !== templatesBtn){
+      closeTemplatesMenu();
+    }
+  });
 
   // ---------------------------------------------------------------
   // Export for Ray Tracer (Phase 3)
@@ -2280,18 +2731,11 @@
 
     var json = JSON.stringify(data, null, 2);
     var blob = new Blob([json], { type: 'application/json' });
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url;
-    a.download = 'scene.json';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
-
-    showToast('Exported scene.json — ' + objects.length + ' object' + (objects.length === 1 ? '' : 's') +
-      (meshCount ? ' (' + triCount + ' triangles across ' + meshCount + ' mesh' + (meshCount === 1 ? '' : 'es') + ')' : '') +
-      ', ' + lights.length + ' light' + (lights.length === 1 ? '' : 's') + '.');
+    saveFile('scene.json', blob, function(){
+      showToast('Exported scene.json — ' + objects.length + ' object' + (objects.length === 1 ? '' : 's') +
+        (meshCount ? ' (' + triCount + ' triangles across ' + meshCount + ' mesh' + (meshCount === 1 ? '' : 'es') + ')' : '') +
+        ', ' + lights.length + ' light' + (lights.length === 1 ? '' : 's') + '.');
+    });
   }
 
   document.getElementById('exportRtBtn').addEventListener('click', exportForRayTracer);
@@ -2309,17 +2753,22 @@
     if((e.ctrlKey || e.metaKey) && (e.key === 'y' || e.key === 'Y' || (e.shiftKey && (e.key === 'z' || e.key === 'Z')))){
       e.preventDefault(); redo(); return;
     }
-    if((e.ctrlKey || e.metaKey) && (e.key === 'd' || e.key === 'D') && selected){
+    if((e.ctrlKey || e.metaKey) && (e.key === 'd' || e.key === 'D') && (selected || multiSelected.length)){
       e.preventDefault(); duplicateSelected(); return;
     }
 
+    // A multi-selection's gizmo only ever moves the group (see
+    // updateMultiPivot) -- rotate/scale mode has no meaning for several
+    // objects sharing one pivot, so those two shortcuts are ignored while
+    // 2+ objects are selected together.
     if(e.key === 'w' || e.key === 'W') setMode('translate');
-    else if(e.key === 'e' || e.key === 'E') setMode('rotate');
-    else if(e.key === 'r' || e.key === 'R') setMode('scale');
+    else if((e.key === 'e' || e.key === 'E') && multiSelected.length <= 1) setMode('rotate');
+    else if((e.key === 'r' || e.key === 'R') && multiSelected.length <= 1) setMode('scale');
     else if((e.key === 'f' || e.key === 'F') && selected){ frameSelected(); }
-    else if((e.key === 'Delete' || e.key === 'Backspace') && selected){
+    else if((e.key === 'Delete' || e.key === 'Backspace') && (selected || multiSelected.length)){
       e.preventDefault();
-      if(selected.userData.kind === 'light') removeLight(selected);
+      if(multiSelected.length) deleteMultiSelected();
+      else if(selected.userData.kind === 'light') removeLight(selected);
       else removeObject(selected);
     } else if(e.key === 'Escape'){
       deselect();
@@ -2376,7 +2825,27 @@
     });
   }
 
+  function renderMultiPanel(){
+    var n = multiSelected.length;
+    inspector.innerHTML =
+      '<div class="insp-head">' +
+        '<div class="insp-title"><span class="panel-kind">Multi-select</span><span class="insp-name">' + n + ' objects selected</span></div>' +
+        '<div class="row" style="gap:6px">' +
+          '<button class="iconbtn" id="dupAllBtn" title="Duplicate all (Ctrl+D)">' + svgDuplicate() + '</button>' +
+          '<button class="iconbtn" id="deleteAllBtn" title="Delete all (Del)">' + svgTrash() + '</button>' +
+        '</div>' +
+      '</div>' +
+      '<hr class="sep">' +
+      '<div style="font-size:12px;color:var(--text-dim);line-height:1.5">' +
+        'Drag the gizmo to move the whole group together. Shift/Ctrl-click a shape or light to add or remove it from the selection, or click empty space to clear it.' +
+      '</div>';
+    document.getElementById('dupAllBtn').addEventListener('click', duplicateMultiSelected);
+    document.getElementById('deleteAllBtn').addEventListener('click', deleteMultiSelected);
+    updateHud();
+  }
+
   function renderInspector(){
+    if(multiSelected.length > 1){ renderMultiPanel(); return; }
     if(!selected){ renderScenePanel(); return; }
 
     if(selected.userData.kind === 'light'){
@@ -2490,6 +2959,17 @@
         '<span class="field-label">Material</span>' +
         '<div class="presets">' + presetsHtml + '</div>' +
       '</div>' +
+      (!selected.userData.imported ?
+        '<div>' +
+          '<span class="field-label">Texture</span>' +
+          '<div class="row" style="gap:6px">' +
+            '<button class="tbtn" id="texUploadBtn" style="flex:1;justify-content:center;border:1px solid var(--panel-border)">Upload image…</button>' +
+            (selected.userData.textureDataUrl ? '<button class="iconbtn" id="texClearBtn" title="Remove texture">' + svgTrash() + '</button>' : '') +
+          '</div>' +
+          (selected.userData.textureDataUrl ? '<div style="font-size:11px;color:var(--text-dim);margin-top:5px">' + escapeHtml(selected.userData.textureName || 'Custom texture') + '</div>' : '') +
+          '<input type="file" id="texInput" accept="image/*" style="display:none">' +
+        '</div>'
+        : '') +
       '<div class="row between">' +
         '<span class="field-label" style="margin:0">Color</span>' +
         '<input type="color" id="shapeColor" value="' + (mat && mat.color ? '#' + mat.color.getHexString() : '#8fa3c7') + '">' +
@@ -2519,6 +2999,40 @@
     document.getElementById('deleteBtn').addEventListener('click', function(){ removeObject(selected); });
     document.getElementById('dupBtn').addEventListener('click', duplicateSelected);
     wireInspNameRename();
+
+    if(!selected.userData.imported){
+      var texBtn = document.getElementById('texUploadBtn');
+      var texInput = document.getElementById('texInput');
+      texBtn.addEventListener('click', function(){ texInput.click(); });
+      texInput.addEventListener('change', function(e){
+        var file = e.target.files && e.target.files[0];
+        if(!file) return;
+        if(!file.type || file.type.indexOf('image/') !== 0){
+          showToast('Please choose an image file.');
+          texInput.value = '';
+          return;
+        }
+        var reader = new FileReader();
+        reader.onload = function(ev){
+          pushHistory();
+          applyTexture(selected, ev.target.result, file.name, function(){
+            renderInspector();
+            showToast('Texture applied.');
+          });
+        };
+        reader.onerror = function(){ showToast('Could not read that image file.'); };
+        reader.readAsDataURL(file);
+        texInput.value = '';
+      });
+      var texClearBtn = document.getElementById('texClearBtn');
+      if(texClearBtn){
+        texClearBtn.addEventListener('click', function(){
+          pushHistory();
+          clearTexture(selected);
+          renderInspector();
+        });
+      }
+    }
 
     function fillXyz(id, v){ document.getElementById(id).value = rtRound(v); }
     fillXyz('posX', selected.position.x); fillXyz('posY', selected.position.y); fillXyz('posZ', selected.position.z);
@@ -2692,6 +3206,27 @@
         '<div class="presets">' + bgModeTabsHtml + '</div>' +
       '</div>' +
       '<div>' + bgBodyHtml + '</div>' +
+      '<hr class="sep">' +
+      '<div class="slider-row">' +
+        '<div class="row between"><span class="field-label" style="margin:0">Shadow softness</span><span class="val mono" id="shadowSoftVal"></span></div>' +
+        '<input type="range" id="shadowSoftness" min="0" max="8" step="0.1">' +
+      '</div>' +
+      '<hr class="sep">' +
+      '<button class="toggle-btn' + (sceneState.bloomEnabled ? ' on' : '') + '" id="bloomToggle">Bloom (glow post-fx)<span class="pip"></span></button>' +
+      (sceneState.bloomEnabled ?
+        '<div class="slider-row">' +
+          '<div class="row between"><span class="field-label" style="margin:0">Bloom strength</span><span class="val mono" id="bloomStrengthVal"></span></div>' +
+          '<input type="range" id="bloomStrength" min="0" max="3" step="0.05">' +
+        '</div>' +
+        '<div class="slider-row">' +
+          '<div class="row between"><span class="field-label" style="margin:0">Bloom radius</span><span class="val mono" id="bloomRadiusVal"></span></div>' +
+          '<input type="range" id="bloomRadius" min="0" max="1" step="0.02">' +
+        '</div>' +
+        '<div class="slider-row">' +
+          '<div class="row between"><span class="field-label" style="margin:0">Bloom threshold</span><span class="val mono" id="bloomThresholdVal"></span></div>' +
+          '<input type="range" id="bloomThreshold" min="0" max="1" step="0.02">' +
+        '</div>'
+        : '') +
       '<div style="font-size:12px;color:var(--text-dim);line-height:1.5">Click any shape or the light to edit it here.</div>';
 
     wireContinuous(document.getElementById('groundColor'), function(e){
@@ -2764,6 +3299,50 @@
       });
     }
 
+    var shadowInput = document.getElementById('shadowSoftness');
+    var shadowVal = document.getElementById('shadowSoftVal');
+    shadowInput.value = sceneState.shadowSoftness;
+    shadowVal.textContent = parseFloat(shadowInput.value).toFixed(1);
+    wireContinuous(shadowInput, function(e){
+      applyShadowSoftness(parseFloat(e.target.value));
+      shadowVal.textContent = parseFloat(e.target.value).toFixed(1);
+    });
+
+    document.getElementById('bloomToggle').addEventListener('click', function(){
+      sceneState.bloomEnabled = !sceneState.bloomEnabled;
+      applyBloomSettings();
+      renderScenePanel();
+    });
+    if(sceneState.bloomEnabled){
+      var strengthInput = document.getElementById('bloomStrength');
+      var strengthVal = document.getElementById('bloomStrengthVal');
+      strengthInput.value = sceneState.bloomStrength;
+      strengthVal.textContent = parseFloat(strengthInput.value).toFixed(2);
+      wireContinuous(strengthInput, function(e){
+        sceneState.bloomStrength = parseFloat(e.target.value);
+        applyBloomSettings();
+        strengthVal.textContent = sceneState.bloomStrength.toFixed(2);
+      });
+      var radiusInput = document.getElementById('bloomRadius');
+      var radiusVal = document.getElementById('bloomRadiusVal');
+      radiusInput.value = sceneState.bloomRadius;
+      radiusVal.textContent = parseFloat(radiusInput.value).toFixed(2);
+      wireContinuous(radiusInput, function(e){
+        sceneState.bloomRadius = parseFloat(e.target.value);
+        applyBloomSettings();
+        radiusVal.textContent = sceneState.bloomRadius.toFixed(2);
+      });
+      var thresholdInput = document.getElementById('bloomThreshold');
+      var thresholdVal = document.getElementById('bloomThresholdVal');
+      thresholdInput.value = sceneState.bloomThreshold;
+      thresholdVal.textContent = parseFloat(thresholdInput.value).toFixed(2);
+      wireContinuous(thresholdInput, function(e){
+        sceneState.bloomThreshold = parseFloat(e.target.value);
+        applyBloomSettings();
+        thresholdVal.textContent = sceneState.bloomThreshold.toFixed(2);
+      });
+    }
+
     updateHud();
   }
 
@@ -2783,8 +3362,9 @@
     setOutlinerOpen(!outlinerEl.classList.contains('open'));
   });
 
-  function outlinerRowHtml(key, name, color, removable, isSelected){
-    return '<div class="outliner-row' + (isSelected ? ' selected' : '') + '" data-key="' + key + '">' +
+  function outlinerRowHtml(key, name, color, removable, isSelected, isMultiSelected){
+    var cls = 'outliner-row' + (isSelected ? ' selected' : '') + (isMultiSelected ? ' multiselected' : '');
+    return '<div class="' + cls + '" data-key="' + key + '">' +
       '<span class="dot2" style="background:' + color + '"></span>' +
       '<span class="name" data-key="' + key + '" title="Double-click to rename">' + escapeHtml(name) + '</span>' +
       (removable ? '<button class="rm" data-key="' + key + '" title="Delete">' + svgTrash() + '</button>' : '') +
@@ -2804,6 +3384,7 @@
     Array.prototype.forEach.call(outlinerListEl.querySelectorAll('.outliner-row'), function(row){
       var ref = outlinerRefForKey(row.getAttribute('data-key'));
       row.classList.toggle('selected', ref === selected);
+      row.classList.toggle('multiselected', multiSelected.indexOf(ref) >= 0);
     });
   }
 
@@ -2857,10 +3438,10 @@
   function renderOutliner(){
     var rows = [];
     lights.forEach(function(l, i){
-      rows.push(outlinerRowHtml('light:' + i, l.userData.label || 'Light', '#' + l.userData.lightObj.color.getHexString(), true, selected === l));
+      rows.push(outlinerRowHtml('light:' + i, l.userData.label || 'Light', '#' + l.userData.lightObj.color.getHexString(), true, selected === l, multiSelected.indexOf(l) >= 0));
     });
     objects.forEach(function(o, i){
-      rows.push(outlinerRowHtml('obj:' + i, o.userData.label || 'Shape', o.userData.color || '#8fa3c7', true, selected === o));
+      rows.push(outlinerRowHtml('obj:' + i, o.userData.label || 'Shape', o.userData.color || '#8fa3c7', true, selected === o, multiSelected.indexOf(o) >= 0));
     });
     outlinerListEl.innerHTML = rows.join('');
 
@@ -2870,11 +3451,10 @@
         var key = row.getAttribute('data-key');
         var parts = key.split(':');
         var idx = parseInt(parts[1], 10);
-        if(parts[0] === 'light'){
-          if(lights[idx]) select(lights[idx]);
-        } else {
-          if(objects[idx]) select(objects[idx]);
-        }
+        var ref = parts[0] === 'light' ? lights[idx] : objects[idx];
+        if(!ref) return;
+        if(e.shiftKey || e.ctrlKey || e.metaKey) toggleMultiSelect(ref);
+        else select(ref);
       });
     });
     Array.prototype.forEach.call(outlinerListEl.querySelectorAll('.rm'), function(btn){
@@ -2970,7 +3550,8 @@
 
     xform.visible = gizmoWasVisible;
 
-    renderer.render(scene, camera);
+    if(bloomPass.enabled) composer.render();
+    else renderer.render(scene, camera);
     requestAnimationFrame(tick);
   }
   requestAnimationFrame(tick);
