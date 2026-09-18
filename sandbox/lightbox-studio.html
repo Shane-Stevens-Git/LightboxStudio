@@ -1,3 +1,4 @@
+<meta charset="UTF-8">
 <title>Lightbox Studio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -406,6 +407,71 @@
   .dropdown-menu button:hover{ background:var(--bg); }
   .dropdown-menu button svg{ width:16px; height:16px; flex:none; }
 
+  /* ---------- Outliner: group clustering ---------- */
+  .outliner-group-row{
+    display:flex; align-items:center; gap:6px; padding:6px 8px; border-radius:8px;
+    cursor:pointer; font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em;
+    color:var(--text-dim); margin-top:4px;
+  }
+  .outliner-group-row:hover{ background:var(--bg); }
+  .outliner-group-row.selected{ background:color-mix(in srgb, var(--accent) 16%, var(--bg)); color:var(--text); }
+  .outliner-group-row .grp-caret{ flex:none; opacity:.7; }
+  .outliner-group-row .name{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-transform:none; letter-spacing:0; font-weight:700; }
+  .outliner-group-row .ungroup-btn{
+    opacity:0; background:none; border:none; color:var(--text-dim); cursor:pointer; padding:2px; display:flex; flex:none;
+  }
+  .outliner-group-row:hover .ungroup-btn{ opacity:1; }
+  .outliner-group-row .ungroup-btn:hover{ color:var(--danger); }
+  .outliner-group-row .ungroup-btn svg{ width:13px; height:13px; }
+  .outliner-row.indented{ margin-left:16px; }
+
+  /* ---------- Array / radial duplicate ---------- */
+  .array-form{
+    display:flex; flex-direction:column; gap:8px;
+    padding:10px; border-radius:9px; border:1px solid var(--panel-border); background:var(--bg);
+  }
+  .array-form .row.between{ font-size:11.5px; }
+  select.array-select{
+    width:100%; background:var(--panel); border:1px solid var(--panel-border); border-radius:7px;
+    color:var(--text); font:inherit; font-size:12.5px; font-weight:600; padding:6px 8px; cursor:pointer;
+  }
+  .array-fields{ display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+  .array-fields label{ font-size:11px; color:var(--text-dim); display:flex; flex-direction:column; gap:3px; }
+  .array-fields input.xyz-input{ text-align:left; padding:5px 6px; }
+  .array-apply-btn{
+    display:flex; align-items:center; justify-content:center; gap:6px;
+    padding:8px 10px; border-radius:8px; border:none;
+    background:var(--accent); color:var(--accent-ink);
+    font:inherit; font-size:12.5px; font-weight:700; cursor:pointer;
+  }
+
+  /* ---------- Shortcuts overlay ---------- */
+  #shortcutsBackdrop{
+    position:fixed; inset:0; z-index:50;
+    background:rgba(10,12,16,.45);
+    display:none; align-items:center; justify-content:center;
+    padding:20px;
+  }
+  #shortcutsBackdrop.open{ display:flex; }
+  #shortcutsPanel{
+    background:var(--panel); border:1px solid var(--panel-border); border-radius:14px;
+    box-shadow:0 12px 40px rgba(0,0,0,.28);
+    width:100%; max-width:420px; max-height:80vh; overflow-y:auto;
+    padding:18px; display:flex; flex-direction:column; gap:14px;
+  }
+  .shortcuts-list{ display:flex; flex-direction:column; gap:4px; }
+  .shortcuts-row{
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    padding:6px 2px; font-size:12.5px;
+  }
+  .shortcuts-row .sc-desc{ color:var(--text); }
+  .shortcuts-row .sc-keys{ display:flex; gap:4px; flex:none; }
+  .sc-key{
+    font-family:'IBM Plex Mono', ui-monospace, monospace; font-size:11px; font-weight:600;
+    background:var(--bg); border:1px solid var(--panel-border); border-radius:6px;
+    padding:2px 7px; color:var(--text-dim); white-space:nowrap;
+  }
+
   @media (max-width:680px){
     #inspector{
       left:14px; right:14px; width:auto; max-width:none;
@@ -553,6 +619,9 @@
     <button class="tbtn iconOnly active" id="toggleOutliner" title="Show/hide scene list">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
     </button>
+    <button class="tbtn iconOnly" id="shortcutsBtn" title="Keyboard shortcuts (?)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M9.2 9.3a2.8 2.8 0 0 1 5.4.9c0 1.9-2.6 2-2.6 3.6"/><path d="M12 17.3h.01"/></svg>
+    </button>
   </div>
 
   <div class="toolgroup">
@@ -578,6 +647,19 @@
 </div>
 
 <div id="toast"></div>
+
+<div id="shortcutsBackdrop">
+  <div id="shortcutsPanel">
+    <div class="insp-head">
+      <div class="insp-title"><span class="panel-kind">Reference</span><span class="insp-name">Keyboard shortcuts</span></div>
+      <button class="iconbtn" id="shortcutsCloseBtn" title="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+    <hr class="sep">
+    <div id="shortcutsList" class="shortcuts-list"></div>
+  </div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.137.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.137.0/examples/js/controls/OrbitControls.js"></script>
@@ -852,6 +934,7 @@
     if(selected === gizmo) deselect();
     var mi = multiSelected.indexOf(gizmo);
     if(mi >= 0) multiSelected.splice(mi, 1);
+    var groupIdOfRemoved = gizmo.userData.groupId;
     scene.remove(gizmo);
     scene.remove(gizmo.userData.lightObj);
     if(gizmo.userData.lightType === 'sun') scene.remove(gizmo.userData.lightObj.target);
@@ -864,6 +947,7 @@
     }
     var idx = lights.indexOf(gizmo);
     if(idx >= 0) lights.splice(idx, 1);
+    cleanupGroupAfterRemoval(groupIdOfRemoved);
     updateHud();
   }
 
@@ -1778,10 +1862,19 @@
   function duplicateMultiSelected(){
     var group = multiSelected.slice();
     if(!group.length) return;
+    // Duplicating a whole persistent group should produce another whole
+    // group (so the copies keep moving/deleting together too), not a
+    // one-off ad-hoc selection that forgets it was ever grouped.
+    var sourceGid = currentSelectionGroupId();
     pushHistory();
     var clones = group.map(function(o){ return duplicateOne(o, true); }).filter(Boolean);
     xform.detach();
     if(clones.length > 1){
+      if(sourceGid){
+        var newGid = 'g' + (groupIdCounter++);
+        groups[newGid] = { label: (groups[sourceGid].label || 'Group') + ' copy' };
+        clones.forEach(function(o){ o.userData.groupId = newGid; });
+      }
       multiSelected = clones;
       selected = null;
       updateMultiPivot();
@@ -1793,6 +1886,112 @@
       select(clones[0]);
       updateHud();
     }
+  }
+
+  // ---------------------------------------------------------------
+  // Persistent named groups: unlike the ad-hoc shift-click multiSelected
+  // above (which resets the moment you click something else), a group is
+  // a saved set of shapes/lights tagged with a shared userData.groupId --
+  // clicking ANY single member re-selects the whole set automatically, so
+  // a composed sub-assembly (e.g. a table + its four legs) can be treated
+  // as one movable/duplicatable/deletable unit without re-shift-clicking
+  // every part each time. Deliberately built on top of the existing
+  // multiSelected/multiPivot machinery (translate-only group gizmo, same
+  // restriction as any other multi-select) rather than real Three.js
+  // parenting -- that keeps every object's own transform/material/light
+  // data exactly where captureSnapshot()/serializeScene() already expect
+  // it, so undo/redo and Save/Load/Export only needed a thin groupId +
+  // groups-registry addition instead of a full hierarchy rewrite.
+  // ---------------------------------------------------------------
+  var groups = {}; // groupId -> { label }
+  var groupIdCounter = 1;
+  var groupNameCounter = 1;
+
+  function groupMembers(gid){
+    return objects.concat(lights).filter(function(o){ return o.userData.groupId === gid; });
+  }
+  // Returns the shared groupId only when the CURRENT multiSelected set is
+  // exactly one whole group (same members, same count) -- a subset or a
+  // mix of groups/loose objects returns null, since "Ungroup" only makes
+  // sense on a group that's selected in full.
+  function currentSelectionGroupId(){
+    if(multiSelected.length < 2) return null;
+    var gid = multiSelected[0].userData.groupId;
+    if(!gid || !groups[gid]) return null;
+    for(var i = 1; i < multiSelected.length; i++){
+      if(multiSelected[i].userData.groupId !== gid) return null;
+    }
+    return groupMembers(gid).length === multiSelected.length ? gid : null;
+  }
+  function selectGroupById(gid){
+    var members = groupMembers(gid);
+    if(members.length < 2){
+      if(members[0]) select(members[0]); else deselect();
+      return;
+    }
+    selected = null;
+    multiSelected = members;
+    xform.detach();
+    updateMultiPivot();
+    renderInspector();
+    updateOutlinerSelection();
+  }
+  // A single, non-shift click on a grouped member selects the whole group
+  // instead of just that one part. The ordinary select() path only runs
+  // for objects with no groupId.
+  function selectMaybeGroup(ref){
+    var gid = ref.userData.groupId;
+    if(gid && groups[gid]) selectGroupById(gid);
+    else select(ref);
+  }
+  // A "group" of 0 or 1 remaining members isn't meaningful, so it
+  // dissolves automatically -- called after any member is removed
+  // (individually, as part of a whole-group delete, or moved into a
+  // different group via a regroup) rather than leaving an orphaned
+  // single-member group sitting around.
+  function cleanupGroupAfterRemoval(gid){
+    if(!gid || !groups[gid]) return;
+    var remaining = groupMembers(gid);
+    if(remaining.length < 2){
+      remaining.forEach(function(o){ delete o.userData.groupId; });
+      delete groups[gid];
+    }
+  }
+  function groupSelected(){
+    if(multiSelected.length < 2) return;
+    pushHistory();
+    var oldGids = {};
+    multiSelected.forEach(function(o){ if(o.userData.groupId) oldGids[o.userData.groupId] = true; });
+    var id = 'g' + (groupIdCounter++);
+    groups[id] = { label: 'Group ' + (groupNameCounter++) };
+    multiSelected.forEach(function(o){ o.userData.groupId = id; });
+    Object.keys(oldGids).forEach(function(gid){ if(gid !== id) cleanupGroupAfterRemoval(gid); });
+    updateMultiPivot();
+    renderInspector();
+    renderOutliner();
+  }
+  function ungroupId(gid){
+    if(!gid || !groups[gid]) return;
+    pushHistory();
+    var members = groupMembers(gid);
+    members.forEach(function(o){ delete o.userData.groupId; });
+    delete groups[gid];
+    if(members.length > 1){
+      multiSelected = members;
+      selected = null;
+      xform.detach();
+      updateMultiPivot();
+      renderInspector();
+    } else if(members.length === 1){
+      multiSelected = [];
+      select(members[0]);
+    } else {
+      deselect();
+    }
+    renderOutliner();
+  }
+  function ungroupSelected(){
+    ungroupId(currentSelectionGroupId());
   }
 
   function findSelectableRoot(obj){
@@ -1832,7 +2031,7 @@
       if(root) toggleMultiSelect(root);
       return;
     }
-    if(root) select(root); else deselect();
+    if(root) selectMaybeGroup(root); else deselect();
   });
 
   function select(obj){
@@ -1889,6 +2088,7 @@
     if(selected === obj) deselect();
     var mi = multiSelected.indexOf(obj);
     if(mi >= 0) multiSelected.splice(mi, 1);
+    var groupIdOfRemoved = obj.userData.groupId;
     disposeOwnProbe(obj);
     removeGlowLight(obj);
     removeAllBlobShadows(obj);
@@ -1899,6 +2099,7 @@
     });
     var idx = objects.indexOf(obj);
     if(idx >= 0) objects.splice(idx, 1);
+    cleanupGroupAfterRemoval(groupIdOfRemoved);
     updateHud();
   }
 
@@ -1938,20 +2139,21 @@
   // the multi-select "duplicate all" path can share it. skipHistory is true
   // when the caller is about to duplicate several objects as one undo step
   // and has already pushed its own snapshot.
-  function duplicateOne(obj, skipHistory){
+  function duplicateOne(obj, skipHistory, customOffset){
     if(!skipHistory) pushHistory();
+    var off = customOffset || new THREE.Vector3(DUPLICATE_OFFSET, 0, DUPLICATE_OFFSET);
 
     if(obj.userData.kind === 'light'){
       var type = obj.userData.lightType;
       var lo = obj.userData.lightObj;
-      var pos = obj.position.clone().add(new THREE.Vector3(DUPLICATE_OFFSET, 0, DUPLICATE_OFFSET));
+      var pos = obj.position.clone().add(off);
       return addLight(type, pos, lo.color.getHex(), lo.intensity);
     }
 
     if(obj.userData.imported){
       var clone = obj.clone(true);
       cloneMaterialsIndependently(clone);
-      clone.position.copy(obj.position).add(new THREE.Vector3(DUPLICATE_OFFSET, 0, DUPLICATE_OFFSET));
+      clone.position.copy(obj.position).add(off);
       clone.quaternion.copy(obj.quaternion);
       clone.scale.copy(obj.scale);
       clone.userData.selectable = true;
@@ -1976,7 +2178,7 @@
     var built = createPrimitive(obj.userData.shapeType);
     if(!built) return null;
     var mesh = built.mesh;
-    mesh.position.copy(obj.position).add(new THREE.Vector3(DUPLICATE_OFFSET, 0, DUPLICATE_OFFSET));
+    mesh.position.copy(obj.position).add(off);
     mesh.quaternion.copy(obj.quaternion);
     mesh.scale.copy(obj.scale);
     mesh.castShadow = true;
@@ -2013,6 +2215,152 @@
   }
 
   // ---------------------------------------------------------------
+  // Array / radial duplicate
+  // Builds several copies of the current selection at once, laid out
+  // either along a straight line (repeated X/Z step) or evenly around a
+  // circle (radial). The source can be a single shape/light or a whole
+  // multi-selection/group -- a multi-member source is cloned as one rigid
+  // unit per array position, and each such clone becomes its own new
+  // persistent group (same "copies stay together" behavior as the
+  // existing Duplicate-a-group path in duplicateMultiSelected()).
+  // arrayFormState persists the last-used values across re-renders (e.g.
+  // switching Linear/Radial, or re-selecting something else) so the form
+  // doesn't reset to defaults every time it's redrawn.
+  // ---------------------------------------------------------------
+  var arrayFormState = { mode: 'linear', count: 6, stepX: 1.5, stepZ: 0, radius: 3, angle: 360 };
+
+  function arrayFormHtml(){
+    var s = arrayFormState;
+    var fieldsHtml = s.mode === 'radial'
+      ? (
+          '<label>Radius<input type="number" step="0.1" id="arrRadius" class="xyz-input" value="' + s.radius + '"></label>' +
+          '<label>Sweep (°)<input type="number" step="1" id="arrAngle" class="xyz-input" value="' + s.angle + '"></label>'
+        )
+      : (
+          '<label>Step X<input type="number" step="0.1" id="arrStepX" class="xyz-input" value="' + s.stepX + '"></label>' +
+          '<label>Step Z<input type="number" step="0.1" id="arrStepZ" class="xyz-input" value="' + s.stepZ + '"></label>'
+        );
+    return (
+      '<div class="array-form">' +
+        '<div class="row between"><span>Array duplicate</span></div>' +
+        '<select class="array-select" id="arrMode">' +
+          '<option value="linear"' + (s.mode === 'linear' ? ' selected' : '') + '>Linear</option>' +
+          '<option value="radial"' + (s.mode === 'radial' ? ' selected' : '') + '>Radial</option>' +
+        '</select>' +
+        '<div class="array-fields">' +
+          '<label>Count<input type="number" step="1" min="2" max="48" id="arrCount" class="xyz-input" value="' + s.count + '"></label>' +
+          fieldsHtml +
+        '</div>' +
+        '<button class="array-apply-btn" id="arrApplyBtn">Create array</button>' +
+      '</div>'
+    );
+  }
+
+  // Reads whatever's currently typed in the form's inputs back into
+  // arrayFormState, so switching Linear<->Radial (which redraws the field
+  // set) doesn't lose a count the user already changed.
+  function syncArrayFormStateFromInputs(){
+    var count = document.getElementById('arrCount');
+    var stepX = document.getElementById('arrStepX');
+    var stepZ = document.getElementById('arrStepZ');
+    var radius = document.getElementById('arrRadius');
+    var angle = document.getElementById('arrAngle');
+    if(count && count.value !== '') arrayFormState.count = Math.max(2, Math.min(48, parseInt(count.value, 10) || 2));
+    if(stepX && stepX.value !== '') arrayFormState.stepX = parseFloat(stepX.value) || 0;
+    if(stepZ && stepZ.value !== '') arrayFormState.stepZ = parseFloat(stepZ.value) || 0;
+    if(radius && radius.value !== '') arrayFormState.radius = parseFloat(radius.value) || 0;
+    if(angle && angle.value !== '') arrayFormState.angle = parseFloat(angle.value) || 0;
+  }
+
+  function wireArrayForm(){
+    var modeEl = document.getElementById('arrMode');
+    var applyBtn = document.getElementById('arrApplyBtn');
+    if(modeEl){
+      modeEl.addEventListener('change', function(){
+        syncArrayFormStateFromInputs();
+        arrayFormState.mode = modeEl.value;
+        var el = document.querySelector('.array-form');
+        if(!el) return;
+        var wrap = document.createElement('div');
+        wrap.innerHTML = arrayFormHtml();
+        el.replaceWith(wrap.firstElementChild);
+        wireArrayForm();
+      });
+    }
+    if(applyBtn){
+      applyBtn.addEventListener('click', function(){
+        syncArrayFormStateFromInputs();
+        runArrayDuplicate();
+      });
+    }
+  }
+
+  function runArrayDuplicate(){
+    var sourceRefs = multiSelected.length > 1 ? multiSelected.slice() : (selected ? [selected] : []);
+    if(!sourceRefs.length){ showToast('Select something to array-duplicate first.'); return; }
+
+    var count = arrayFormState.count;
+    var offsets = []; // {vec: THREE.Vector3, angle: radians} -- one per extra copy
+    if(arrayFormState.mode === 'radial'){
+      var radius = arrayFormState.radius;
+      var totalAngle = arrayFormState.angle;
+      // Copies sit on a circle of `radius`, centered `radius` units away
+      // from the source along +Z (so the source itself sits on the circle
+      // too), sweeping totalAngle degrees over `count` total positions --
+      // a full 360deg sweep therefore doesn't re-place a copy on top of
+      // the original at the end.
+      for(var i = 1; i < count; i++){
+        var theta = (totalAngle * Math.PI / 180) * (i / count);
+        var dx = radius * Math.sin(theta);
+        var dz = radius * (1 - Math.cos(theta));
+        offsets.push({ vec: new THREE.Vector3(dx, 0, dz), angle: theta });
+      }
+    } else {
+      for(var j = 1; j < count; j++){
+        offsets.push({ vec: new THREE.Vector3(arrayFormState.stepX * j, 0, arrayFormState.stepZ * j), angle: 0 });
+      }
+    }
+    if(!offsets.length) return;
+
+    pushHistory();
+    var sourceGid = currentSelectionGroupId();
+    var sourceLabel = sourceGid && groups[sourceGid] ? groups[sourceGid].label : 'Group';
+    var newSelection = [];
+    offsets.forEach(function(off){
+      var clones = sourceRefs.map(function(o){ return duplicateOne(o, true, off.vec.clone()); }).filter(Boolean);
+      if(!clones.length) return;
+      if(off.angle){
+        // Spin each clone around Y to match its position on the circle,
+        // so directional shapes (cones, arrows-as-cylinders, etc) fan
+        // outward instead of all facing the same way as the source.
+        clones.forEach(function(c){ c.rotateY(off.angle); });
+      }
+      if(clones.length > 1){
+        var gid = 'g' + (groupIdCounter++);
+        groups[gid] = { label: sourceLabel + ' copy' };
+        clones.forEach(function(c){ c.userData.groupId = gid; });
+      }
+      newSelection = newSelection.concat(clones);
+    });
+
+    if(!newSelection.length){ undoStack.pop(); updateHistoryButtons(); return; }
+
+    xform.detach();
+    if(newSelection.length > 1){
+      multiSelected = newSelection;
+      selected = null;
+      updateMultiPivot();
+    } else {
+      multiSelected = [];
+      selected = newSelection[0];
+      xform.attach(selected);
+    }
+    renderInspector();
+    updateHud();
+    showToast('Created ' + newSelection.length + ' cop' + (newSelection.length === 1 ? 'y' : 'ies') + '.');
+  }
+
+  // ---------------------------------------------------------------
   // Undo / redo history
   // ---------------------------------------------------------------
   var undoStack = [];
@@ -2039,7 +2387,8 @@
           emissiveIntensity: m ? m.emissiveIntensity : undefined,
           clearcoat: m && ('clearcoat' in m) ? m.clearcoat : undefined,
           textureDataUrl: o.userData.textureDataUrl || null,
-          textureName: o.userData.textureName || null
+          textureName: o.userData.textureName || null,
+          groupId: o.userData.groupId || null
         };
       }),
       lights: lights.map(function(l){
@@ -2048,9 +2397,11 @@
           ref: l,
           pos: l.position.clone(),
           color: lo.color.getHex(),
-          intensity: lo.intensity
+          intensity: lo.intensity,
+          groupId: l.userData.groupId || null
         };
       }),
+      groups: JSON.parse(JSON.stringify(groups)),
       groundColor: sceneState.groundColor,
       groundTexture: sceneState.groundTexture,
       background: {
@@ -2106,6 +2457,7 @@
         clearTexture(s.ref);
       }
       updateReflectionProbe(s.ref);
+      if(s.groupId) s.ref.userData.groupId = s.groupId; else delete s.ref.userData.groupId;
       objects.push(s.ref);
     });
 
@@ -2131,8 +2483,15 @@
       s.ref.userData.lightObj.intensity = s.intensity;
       s.ref.userData.core.material.color.setHex(s.color);
       s.ref.userData.glow.material.color.setHex(s.color);
+      if(s.groupId) s.ref.userData.groupId = s.groupId; else delete s.ref.userData.groupId;
       lights.push(s.ref);
     });
+
+    // Restore the group registry itself (labels + membership bookkeeping).
+    // Reassigning the closure variable is safe -- every other function that
+    // reads `groups` looks it up fresh each call rather than holding a
+    // stale reference.
+    groups = snap.groups ? JSON.parse(JSON.stringify(snap.groups)) : {};
 
     setGroundColor(snap.groundColor);
     setGroundTexture(snap.groundTexture);
@@ -2228,7 +2587,8 @@
         emissiveIntensity: m ? m.emissiveIntensity : undefined,
         clearcoat: m && ('clearcoat' in m) ? m.clearcoat : undefined,
         textureDataUrl: o.userData.textureDataUrl || null,
-        textureName: o.userData.textureName || null
+        textureName: o.userData.textureName || null,
+        groupId: o.userData.groupId || null
       });
     });
     var lightsOut = lights.map(function(l){
@@ -2237,7 +2597,8 @@
         type: l.userData.lightType,
         position: l.position.toArray(),
         color: lo.color.getHex(),
-        intensity: lo.intensity
+        intensity: lo.intensity,
+        groupId: l.userData.groupId || null
       };
     });
     return {
@@ -2246,6 +2607,7 @@
       skippedImports: skipped,
       placedCount: placedCount,
       lights: lightsOut,
+      groups: JSON.parse(JSON.stringify(groups)),
       ground: { color: sceneState.groundColor, texture: sceneState.groundTexture },
       background: {
         mode: sceneState.bgMode,
@@ -2309,6 +2671,7 @@
       if(typeof s.clearcoat === 'number') applyClearcoat(mesh, s.clearcoat);
       if(s.textureDataUrl) applyTexture(mesh, s.textureDataUrl, s.textureName);
       updateReflectionProbe(mesh);
+      if(s.groupId) mesh.userData.groupId = s.groupId;
       scene.add(mesh);
       objects.push(mesh);
     });
@@ -2323,12 +2686,43 @@
     (lightsData || []).forEach(function(s){
       if(!LIGHT_TYPES[s.type]) return;
       var pos = s.position ? new THREE.Vector3(s.position[0], s.position[1], s.position[2]) : null;
-      addLight(s.type, pos, s.color, s.intensity);
+      var gizmo = addLight(s.type, pos, s.color, s.intensity);
+      if(gizmo && s.groupId) gizmo.userData.groupId = s.groupId;
     });
     if(!lights.length){
       // Never load into total darkness even if a save somehow had no lights.
       addLight('point', new THREE.Vector3(DEFAULT_LIGHT_POS[0], DEFAULT_LIGHT_POS[1], DEFAULT_LIGHT_POS[2]), DEFAULT_LIGHT_COLOR, DEFAULT_LIGHT_INTENSITY);
     }
+
+    // Restore the group registry (labels) that goes with the groupIds just
+    // reapplied above. Any group whose members didn't all survive (e.g. an
+    // older save, or a partial/corrupt one) is pruned rather than left as
+    // an orphaned entry with fewer than 2 real members.
+    groups = {};
+    if(data.groups && typeof data.groups === 'object'){
+      Object.keys(data.groups).forEach(function(gid){
+        if(data.groups[gid] && typeof data.groups[gid].label === 'string') groups[gid] = { label: data.groups[gid].label };
+      });
+    }
+    Object.keys(groups).forEach(function(gid){
+      if(groupMembers(gid).length < 2){
+        groupMembers(gid).forEach(function(o){ delete o.userData.groupId; });
+        delete groups[gid];
+      }
+    });
+    // Bump the id/name counters past anything just loaded so newly created
+    // groups never collide with (or visually duplicate the number of) a
+    // restored one.
+    Object.keys(groups).forEach(function(gid){
+      var idNum = parseInt(gid.replace(/^g/, ''), 10);
+      if(!isNaN(idNum) && idNum >= groupIdCounter) groupIdCounter = idNum + 1;
+      var label = groups[gid].label || '';
+      var labelMatch = /Group (\d+)/.exec(label);
+      if(labelMatch){
+        var labelNum = parseInt(labelMatch[1], 10);
+        if(!isNaN(labelNum) && labelNum >= groupNameCounter) groupNameCounter = labelNum + 1;
+      }
+    });
 
     if(data.ground){
       setGroundColor(data.ground.color);
@@ -2853,11 +3247,55 @@
   document.getElementById('exportRtBtn').addEventListener('click', exportForRayTracer);
 
   // ---------------------------------------------------------------
+  // Keyboard shortcuts cheat sheet (overlay)
+  // ---------------------------------------------------------------
+  var SHORTCUTS_LIST = [
+    { keys: ['W'], desc: 'Move mode' },
+    { keys: ['E'], desc: 'Rotate mode' },
+    { keys: ['R'], desc: 'Scale mode' },
+    { keys: ['F'], desc: 'Frame selected' },
+    { keys: ['Ctrl', 'D'], desc: 'Duplicate selection' },
+    { keys: ['Ctrl', 'G'], desc: 'Group selection' },
+    { keys: ['Ctrl', 'Shift', 'G'], desc: 'Ungroup' },
+    { keys: ['Ctrl', 'Z'], desc: 'Undo' },
+    { keys: ['Ctrl', 'Shift', 'Z'], desc: 'Redo' },
+    { keys: ['Delete'], desc: 'Delete selection' },
+    { keys: ['Escape'], desc: 'Deselect / close panels' },
+    { keys: ['Shift', 'Click'], desc: 'Add/remove from selection' },
+    { keys: ['Double-click name'], desc: 'Rename (outliner or inspector)' },
+    { keys: ['Shift', 'drag'], desc: 'Temporarily invert grid/angle snap' },
+    { keys: ['?'], desc: 'Toggle this panel' }
+  ];
+  var shortcutsBackdropEl = document.getElementById('shortcutsBackdrop');
+  var shortcutsListEl = document.getElementById('shortcutsList');
+  shortcutsListEl.innerHTML = SHORTCUTS_LIST.map(function(item){
+    var keysHtml = item.keys.map(function(k){ return '<span class="sc-key">' + escapeHtml(k) + '</span>'; }).join('');
+    return '<div class="shortcuts-row"><span class="sc-desc">' + escapeHtml(item.desc) + '</span><span class="sc-keys">' + keysHtml + '</span></div>';
+  }).join('');
+  function shortcutsOpen(){ return shortcutsBackdropEl.classList.contains('open'); }
+  function openShortcuts(){ shortcutsBackdropEl.classList.add('open'); }
+  function closeShortcuts(){ shortcutsBackdropEl.classList.remove('open'); }
+  function toggleShortcuts(){ if(shortcutsOpen()) closeShortcuts(); else openShortcuts(); }
+  document.getElementById('shortcutsBtn').addEventListener('click', toggleShortcuts);
+  document.getElementById('shortcutsCloseBtn').addEventListener('click', closeShortcuts);
+  shortcutsBackdropEl.addEventListener('click', function(e){
+    if(e.target === shortcutsBackdropEl) closeShortcuts();
+  });
+
+  // ---------------------------------------------------------------
   // Keyboard shortcuts
   // ---------------------------------------------------------------
   window.addEventListener('keydown', function(e){
     var tag = (document.activeElement && document.activeElement.tagName) || '';
     if(tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+    if(e.key === '?'){
+      e.preventDefault(); toggleShortcuts(); return;
+    }
+    if(shortcutsOpen()){
+      if(e.key === 'Escape'){ e.preventDefault(); closeShortcuts(); }
+      return; // nothing else should act on the scene while this overlay is open
+    }
 
     if((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === 'z' || e.key === 'Z')){
       e.preventDefault(); undo(); return;
@@ -2867,6 +3305,11 @@
     }
     if((e.ctrlKey || e.metaKey) && (e.key === 'd' || e.key === 'D') && (selected || multiSelected.length)){
       e.preventDefault(); duplicateSelected(); return;
+    }
+    if((e.ctrlKey || e.metaKey) && (e.key === 'g' || e.key === 'G')){
+      e.preventDefault();
+      if(e.shiftKey) ungroupSelected(); else groupSelected();
+      return;
     }
 
     // A multi-selection's gizmo only ever moves the group (see
@@ -2898,6 +3341,9 @@
   }
   function svgDuplicate(){
     return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>';
+  }
+  function svgUngroup(){
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1.2"/><rect x="14" y="14" width="7" height="7" rx="1.2"/><path d="M9.5 14.5 3.5 20.5M14.5 9.5l6-6"/></svg>';
   }
 
   // Double-click the shape/light name in the inspector header to rename it
@@ -2937,22 +3383,75 @@
     });
   }
 
+  function wireGroupNameRename(gid){
+    var el = document.getElementById('inspMultiNameLabel');
+    if(!el || !groups[gid]) return;
+    el.addEventListener('dblclick', function(){
+      var current = groups[gid].label || '';
+      var input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'name-edit';
+      input.value = current;
+      el.replaceWith(input);
+      input.focus();
+      input.select();
+      var done = false;
+      function commit(){
+        if(done) return;
+        done = true;
+        var v = input.value.trim();
+        if(v && groups[gid]) groups[gid].label = v;
+        renderInspector();
+        renderOutliner();
+      }
+      function cancel(){
+        if(done) return;
+        done = true;
+        renderInspector();
+      }
+      input.addEventListener('keydown', function(e){
+        if(e.key === 'Enter'){ e.preventDefault(); commit(); }
+        else if(e.key === 'Escape'){ e.preventDefault(); cancel(); }
+        e.stopPropagation();
+      });
+      input.addEventListener('blur', commit);
+    });
+  }
+
   function renderMultiPanel(){
     var n = multiSelected.length;
+    var gid = currentSelectionGroupId();
+    var titleKind = gid ? 'Group' : 'Multi-select';
+    var titleName = gid ? (groups[gid].label || 'Group') : (n + ' objects selected');
     inspector.innerHTML =
       '<div class="insp-head">' +
-        '<div class="insp-title"><span class="panel-kind">Multi-select</span><span class="insp-name">' + n + ' objects selected</span></div>' +
+        '<div class="insp-title"><span class="panel-kind">' + titleKind + '</span><span class="insp-name" id="inspMultiNameLabel"' + (gid ? ' title="Double-click to rename"' : '') + '>' + escapeHtml(titleName) + '</span></div>' +
         '<div class="row" style="gap:6px">' +
           '<button class="iconbtn" id="dupAllBtn" title="Duplicate all (Ctrl+D)">' + svgDuplicate() + '</button>' +
           '<button class="iconbtn" id="deleteAllBtn" title="Delete all (Del)">' + svgTrash() + '</button>' +
         '</div>' +
       '</div>' +
+      (gid ?
+        '<button class="tbtn" id="ungroupBtn" style="width:100%;justify-content:center;border:1px solid var(--panel-border)">' + svgUngroup() + ' Ungroup</button>'
+        : (n >= 2 ? '<button class="tbtn" id="groupBtn" style="width:100%;justify-content:center;border:1px solid var(--panel-border)">Group (Ctrl+G)</button>' : '')
+      ) +
       '<hr class="sep">' +
       '<div style="font-size:12px;color:var(--text-dim);line-height:1.5">' +
-        'Drag the gizmo to move the whole group together. Shift/Ctrl-click a shape or light to add or remove it from the selection, or click empty space to clear it.' +
-      '</div>';
+        (gid
+          ? (n + ' members, saved as a group. Drag the gizmo to move them all together — clicking any one of them re-selects the whole group. Ungroup to edit its parts individually again.')
+          : 'Drag the gizmo to move the whole selection together. Shift/Ctrl-click a shape or light to add or remove it, or click empty space to clear it.') +
+      '</div>' +
+      '<hr class="sep">' +
+      arrayFormHtml();
     document.getElementById('dupAllBtn').addEventListener('click', duplicateMultiSelected);
     document.getElementById('deleteAllBtn').addEventListener('click', deleteMultiSelected);
+    if(gid){
+      document.getElementById('ungroupBtn').addEventListener('click', ungroupSelected);
+      wireGroupNameRename(gid);
+    } else if(n >= 2){
+      document.getElementById('groupBtn').addEventListener('click', groupSelected);
+    }
+    wireArrayForm();
     updateHud();
   }
 
@@ -2984,11 +3483,14 @@
           (selected.userData.lightType === 'sun'
             ? 'Drag the glowing marker to change the angle the sun shines from.'
             : 'Drag the glowing sphere in the scene to move the light around.') +
-        '</div>';
+        '</div>' +
+        '<hr class="sep">' +
+        arrayFormHtml();
 
       document.getElementById('deleteLightBtn').addEventListener('click', function(){ removeLight(selected); });
       document.getElementById('dupBtn').addEventListener('click', duplicateSelected);
       wireInspNameRename();
+      wireArrayForm();
 
       wireContinuous(document.getElementById('lightColor'), function(e){
         lightObj.color.set(e.target.value);
@@ -3106,11 +3608,14 @@
         : '') +
       (supportsEmissive ?
         '<button class="toggle-btn' + (isGlowing ? ' on' : '') + '" id="glowToggle">Glow<span class="pip"></span></button>' + glowFieldsHtml
-        : '');
+        : '') +
+      '<hr class="sep">' +
+      arrayFormHtml();
 
     document.getElementById('deleteBtn').addEventListener('click', function(){ removeObject(selected); });
     document.getElementById('dupBtn').addEventListener('click', duplicateSelected);
     wireInspNameRename();
+    wireArrayForm();
 
     if(!selected.userData.imported){
       var texBtn = document.getElementById('texUploadBtn');
@@ -3474,12 +3979,20 @@
     setOutlinerOpen(!outlinerEl.classList.contains('open'));
   });
 
-  function outlinerRowHtml(key, name, color, removable, isSelected, isMultiSelected){
-    var cls = 'outliner-row' + (isSelected ? ' selected' : '') + (isMultiSelected ? ' multiselected' : '');
+  function outlinerRowHtml(key, name, color, removable, isSelected, isMultiSelected, indented){
+    var cls = 'outliner-row' + (indented ? ' indented' : '') + (isSelected ? ' selected' : '') + (isMultiSelected ? ' multiselected' : '');
     return '<div class="' + cls + '" data-key="' + key + '">' +
       '<span class="dot2" style="background:' + color + '"></span>' +
       '<span class="name" data-key="' + key + '" title="Double-click to rename">' + escapeHtml(name) + '</span>' +
       (removable ? '<button class="rm" data-key="' + key + '" title="Delete">' + svgTrash() + '</button>' : '') +
+      '</div>';
+  }
+
+  function groupHeaderHtml(gid, isSelected){
+    return '<div class="outliner-group-row' + (isSelected ? ' selected' : '') + '" data-group="' + gid + '">' +
+      '<span class="grp-caret">▾</span>' +
+      '<span class="name" data-group-name="' + gid + '" title="Double-click to rename">' + escapeHtml(groups[gid].label || 'Group') + '</span>' +
+      '<button class="ungroup-btn" data-ungroup="' + gid + '" title="Ungroup">' + svgUngroup() + '</button>' +
       '</div>';
   }
 
@@ -3498,6 +4011,10 @@
       row.classList.toggle('selected', ref === selected);
       row.classList.toggle('multiselected', multiSelected.indexOf(ref) >= 0);
     });
+    var selGid = currentSelectionGroupId();
+    Array.prototype.forEach.call(outlinerListEl.querySelectorAll('.outliner-group-row'), function(row){
+      row.classList.toggle('selected', row.getAttribute('data-group') === selGid);
+    });
   }
 
   // Delegated on outlinerListEl itself (which persists across renders --
@@ -3512,15 +4029,19 @@
   // dblclick then lands on an already-detached element and silently does
   // nothing. Delegating to the stable parent sidesteps that entirely.
   outlinerListEl.addEventListener('dblclick', function(e){
-    var nameEl = e.target.closest('.name');
+    var groupNameEl = e.target.closest('[data-group-name]');
+    var nameEl = groupNameEl || e.target.closest('.name');
     if(!nameEl || !outlinerListEl.contains(nameEl)) return;
     e.stopPropagation();
-    var ref = outlinerRefForKey(nameEl.getAttribute('data-key'));
-    if(!ref) return;
+    var isGroup = !!groupNameEl;
+    var gid = isGroup ? nameEl.getAttribute('data-group-name') : null;
+    var ref = isGroup ? null : outlinerRefForKey(nameEl.getAttribute('data-key'));
+    if(!isGroup && !ref) return;
+    if(isGroup && !groups[gid]) return;
     var input = document.createElement('input');
     input.type = 'text';
     input.className = 'name-edit';
-    input.value = ref.userData.label || '';
+    input.value = isGroup ? (groups[gid].label || '') : (ref.userData.label || '');
     nameEl.replaceWith(input);
     input.focus();
     input.select();
@@ -3529,9 +4050,12 @@
       if(done) return;
       done = true;
       var v = input.value.trim();
-      if(v) ref.userData.label = v;
+      if(v){
+        if(isGroup) groups[gid].label = v; else ref.userData.label = v;
+      }
       renderOutliner();
-      if(selected === ref) renderInspector();
+      if(!isGroup && selected === ref) renderInspector();
+      if(isGroup) renderInspector();
     }
     function cancel(){
       if(done) return;
@@ -3547,13 +4071,32 @@
     input.addEventListener('click', function(ev){ ev.stopPropagation(); });
   });
 
+  // Groups render as a clustered block: a header row (rename/ungroup) is
+  // emitted the first time any of its members is encountered while
+  // walking lights then objects, immediately followed by ALL of that
+  // group's members together (regardless of where their own indices fall
+  // in the lights/objects arrays) -- keeps a group visually contiguous
+  // without needing a real nested-tree data model underneath it.
   function renderOutliner(){
+    var allRefs = [];
+    lights.forEach(function(l, i){ allRefs.push({ ref: l, key: 'light:' + i, color: '#' + l.userData.lightObj.color.getHexString(), fallback: 'Light' }); });
+    objects.forEach(function(o, i){ allRefs.push({ ref: o, key: 'obj:' + i, color: o.userData.color || '#8fa3c7', fallback: 'Shape' }); });
+
     var rows = [];
-    lights.forEach(function(l, i){
-      rows.push(outlinerRowHtml('light:' + i, l.userData.label || 'Light', '#' + l.userData.lightObj.color.getHexString(), true, selected === l, multiSelected.indexOf(l) >= 0));
-    });
-    objects.forEach(function(o, i){
-      rows.push(outlinerRowHtml('obj:' + i, o.userData.label || 'Shape', o.userData.color || '#8fa3c7', true, selected === o, multiSelected.indexOf(o) >= 0));
+    var emittedGroups = {};
+    var selGid = currentSelectionGroupId();
+    allRefs.forEach(function(entry){
+      var gid = entry.ref.userData.groupId;
+      if(gid && groups[gid]){
+        if(emittedGroups[gid]) return;
+        emittedGroups[gid] = true;
+        rows.push(groupHeaderHtml(gid, selGid === gid));
+        allRefs.filter(function(e){ return e.ref.userData.groupId === gid; }).forEach(function(m){
+          rows.push(outlinerRowHtml(m.key, m.ref.userData.label || m.fallback, m.color, true, selected === m.ref, multiSelected.indexOf(m.ref) >= 0, true));
+        });
+        return;
+      }
+      rows.push(outlinerRowHtml(entry.key, entry.ref.userData.label || entry.fallback, entry.color, true, selected === entry.ref, multiSelected.indexOf(entry.ref) >= 0, false));
     });
     outlinerListEl.innerHTML = rows.join('');
 
@@ -3566,7 +4109,7 @@
         var ref = parts[0] === 'light' ? lights[idx] : objects[idx];
         if(!ref) return;
         if(e.shiftKey || e.ctrlKey || e.metaKey) toggleMultiSelect(ref);
-        else select(ref);
+        else selectMaybeGroup(ref);
       });
     });
     Array.prototype.forEach.call(outlinerListEl.querySelectorAll('.rm'), function(btn){
@@ -3580,6 +4123,20 @@
         } else {
           if(objects[idx]) removeObject(objects[idx]);
         }
+      });
+    });
+    Array.prototype.forEach.call(outlinerListEl.querySelectorAll('.outliner-group-row'), function(row){
+      row.addEventListener('click', function(e){
+        if(e.target.closest('.ungroup-btn')) return;
+        var gid = row.getAttribute('data-group');
+        if(gid) selectGroupById(gid);
+      });
+    });
+    Array.prototype.forEach.call(outlinerListEl.querySelectorAll('.ungroup-btn'), function(btn){
+      btn.addEventListener('click', function(e){
+        e.stopPropagation();
+        var gid = btn.getAttribute('data-ungroup');
+        if(gid) ungroupId(gid);
       });
     });
   }
