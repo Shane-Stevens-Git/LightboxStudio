@@ -166,18 +166,24 @@
     transition:transform .18s ease;
   }
   #inspector{
-    top: calc(var(--toolbar-h) + 14px + env(safe-area-inset-top, 0px));
+    /* The toolbar itself sits at top:14px (see #toolbar below), so its
+       bottom edge is (14px + toolbar-h) from the viewport top -- adding
+       just "+ 14px" here landed exactly ON that edge instead of below it,
+       leaving these panels flush against the toolbar with no visible gap.
+       "+ 28px" accounts for the toolbar's own 14px offset plus a real
+       14px breathing-room gap beneath it. */
+    top: calc(var(--toolbar-h) + 28px + env(safe-area-inset-top, 0px));
     right:14px;
     width:270px;
     max-width:calc(100vw - 28px);
-    max-height: calc(100vh - var(--toolbar-h) - 42px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    max-height: calc(100vh - var(--toolbar-h) - 56px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
     overflow-y:auto;
     transform:translateX(calc(100% + 28px));
   }
   #inspector.open{ transform:translateX(0); }
 
   #outliner{
-    top: calc(var(--toolbar-h) + 14px + env(safe-area-inset-top, 0px));
+    top: calc(var(--toolbar-h) + 28px + env(safe-area-inset-top, 0px));
     left:14px;
     width:210px;
     max-width:calc(100vw - 28px);
@@ -484,7 +490,7 @@
     #outliner{
       left:14px; right:14px; width:auto; max-width:none;
     }
-    #hud{ bottom: auto; top: calc(var(--toolbar-h) + 14px + env(safe-area-inset-top, 0px)); }
+    #hud{ bottom: auto; top: calc(var(--toolbar-h) + 28px + env(safe-area-inset-top, 0px)); }
   }
 </style>
 
