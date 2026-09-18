@@ -1,57 +1,43 @@
-# Ray Tracer
+# Lightbox Studio
 
-A C++17 CPU ray tracer following the "Ray Tracing in One Weekend" path:
-spheres, diffuse/metal/dielectric materials, antialiasing, a positionable
-camera with depth of field, and multithreaded rendering.
+A 3D lighting and materials sandbox that runs in your browser. It's a single HTML
+file built on [Three.js](https://threejs.org/), so there's nothing to install and no build step.
 
-## Build
+**Open it:** https://shane-stevens-git.github.io/LightboxStudio/
+
+Or download [`sandbox/lightbox-studio.html`](sandbox/lightbox-studio.html) and open it in a browser.
+It loads Three.js from a CDN, so it needs an internet connection.
+
+## What you can do
+
+- **Build a scene:** add boxes, spheres, cylinders, cones, capsules, and tori, plus point lights and a sun. Move, rotate, and scale them with a gizmo (`W` / `E` / `R`).
+- **Play with light and materials:** edit materials and textures, make objects glow and act as lights, turn on bloom, and adjust shadow softness.
+- **Set the stage:** pick a ground (plain, checker, dirt, grass, cement) and a backdrop (studio, clear sky, cloudy, overcast, sunset, night, a solid color, or your own image).
+- **Edit faster:** multi-select, snapping, grouping, array and radial duplicates, undo and redo, camera presets, and a shortcuts cheat sheet (`?`).
+- **Bring your own models:** import `.glb` / `.gltf` files.
+- **Save your work:** save and load scenes as `.json` files, or start from a template (Studio Trio, Still Life, Neon Night).
+
+## Where it started: a C++ ray tracer (early experiment)
+
+This project began as a C++17 ray tracer following the
+["Ray Tracing in One Weekend"](https://raytracing.github.io/) path. It's **no longer being developed**
+and is kept here for reference; Lightbox Studio is the main project now.
+
+The renderer supports spheres and triangle meshes, diffuse / metal / glass materials, antialiasing,
+depth of field, a BVH for speed, and multithreaded rendering. Lightbox Studio's
+**Export for Ray Tracer** button writes a `scene.json` that it can render.
+
+Build and render (needs CMake and a C++17 compiler):
 
 ```
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j4
+
+./build/raytracer > renders/output.ppm              # the built-in many-spheres scene
+./build/raytracer scene.json > renders/output.ppm   # a scene exported from Lightbox Studio
 ```
 
-## Render
+Convert the PPM to PNG with ImageMagick (`magick renders/output.ppm renders/output.png`) or Pillow.
+The `renders/` folder has milestone images: gradient, surface normals, diffuse, metal and glass, then the final scene.
 
-The program writes a PPM image to stdout:
-
-```
-./build/raytracer > renders/output.ppm
-```
-
-Convert to PNG (requires ImageMagick or Pillow):
-
-```
-magick renders/output.ppm renders/output.png
-# or: python3 -c "from PIL import Image; Image.open('renders/output.ppm').save('renders/output.png')"
-```
-
-## Layout
-
-- `include/vec3.h` — 3D vector math (also used as `point3` and `color`)
-- `include/ray.h` — ray class
-- `include/interval.h` — simple `[min, max]` interval helper
-- `include/color.h` — gamma-corrected PPM color output
-- `include/hittable.h` / `hittable_list.h` — intersection abstraction + scene container
-- `include/sphere.h` — sphere geometry
-- `include/material.h` — `lambertian` (diffuse), `metal`, `dielectric` (glass) materials
-- `include/camera.h` — camera, antialiasing, defocus blur, multithreaded render loop
-- `src/main.cpp` — scene setup (currently the classic "many spheres" final scene)
-
-## Tuning
-
-In `src/main.cpp`, on the `camera` object:
-
-- `image_width` / `aspect_ratio` — output resolution
-- `samples_per_pixel` — antialiasing / noise reduction (higher = cleaner, slower)
-- `max_depth` — max ray bounces
-- `vfov`, `lookfrom`, `lookat`, `vup` — camera framing
-- `defocus_angle`, `focus_dist` — depth of field
-
-Rendering is parallelized across all available CPU cores automatically.
-
-## Renders
-
-See `renders/` for milestone images produced while building this out:
-gradient background → surface normals → diffuse antialiasing → metal/glass
-materials → final multi-sphere scene with depth of field.
+Renderer code lives in `include/` (vectors, rays, materials, camera, BVH, JSON parsing) and `src/main.cpp`.
